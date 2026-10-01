@@ -3,7 +3,7 @@
 // 정적 파일 서빙 + WebSocket 방/계정/코인/레이스 관리
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const W = require('./public/world.js');
-const makeGP = require('./gp_server.js');
+const makeGP = require('./public/gp_rules.js');
 const makeStore = require('./store.js');
 
 const ROOT = path.join(__dirname, 'public');
@@ -49,7 +49,8 @@ const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]);
   if (p === '/healthz') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
   if (p === '/config.json') {
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+    // GitHub Pages 같은 다른 주소의 페이지에서도 읽을 수 있게 (CORS)
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' });
     return res.end(JSON.stringify({ googleClientId: GOOGLE_CLIENT_ID }));
   }
   if (p === '/') p = '/index.html';

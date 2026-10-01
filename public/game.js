@@ -3,6 +3,7 @@ import * as THREE from './lib/three.module.min.js';
 import { makeTextures } from './tex.js';
 import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js';
 import { initAudio, engine, sfx, setVolume } from './audio.js';
+import { makeLocalServer } from './local.js';
 import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js';
 
 const W = window.WORLD;
@@ -653,10 +654,25 @@ function updateRemotes(now, dt) {
 /* ================= 네트워크 ================= */
 function send(o) { if (G.ws && G.ws.readyState === 1) G.ws.send(JSON.stringify(o)); }
 let reconnectTimer = null;
+// 접속할 게임 서버: net-config.js 의 PR_SERVER(예: Render 주소) → 없으면 이 페이지를 준 서버.
+// GitHub Pages(github.io)처럼 게임 서버가 없는 곳에서는 혼자 하기(오프라인).
+const SERVER = (window.PR_SERVER || '').replace(/\/+$/, '') || (location.hostname.endsWith('github.io') ? '' : location.origin);
+const WS_URL = SERVER.replace(/^http/, 'ws');
+let everOpened = false;
+function goOffline() {
+  G.offline = true;
+  clearTimeout(reconnectTimer);
+  if (G.ws && !G.ws.offline) { G.ws.onclose = null; try { G.ws.close(); } catch (e) { /* ignore */ } }
+  $('conn').classList.add('hidden');
+  document.body.classList.add('offline');
+  G.ws = makeLocalServer(onMsg);
+}
 function connect() {
-  const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+  if (!WS_URL) { goOffline(); return; }
+  const ws = new WebSocket(WS_URL);
   G.ws = ws;
   ws.onopen = () => {
+    everOpened = true;
     $('conn').classList.add('hidden');
     if (G.session) send({ t: 'auth', session: G.session });
     else showScreen('login');
@@ -664,7 +680,9 @@ function connect() {
   ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (er) { return; } onMsg(m); };
   ws.onclose = () => {
     if (G.room) { G.wantRejoin = G.room.code; leaveLocal(); }
-    $('conn').textContent = '서버 연결이 끊겼어요. 다시 연결 중...';
+    if (G.offline) return;
+    $('connMsg').textContent = everOpened ? '서버 연결이 끊겼어요. 다시 연결 중...' : '서버에 연결하는 중... (무료 서버가 자고 있으면 1분쯤 걸려요)';
+    $('offlineBtn').classList.toggle('hidden', everOpened);
     $('conn').classList.remove('hidden');
     clearTimeout(reconnectTimer);
     reconnectTimer = setTimeout(connect, 2000);
@@ -675,7 +693,7 @@ function onMsg(m) {
   if (m.t.startsWith('gp') || m.t === 'gi') { gpMsg(m); return; }
   switch (m.t) {
     case 'authed':
-      G.session = m.session; lsSet('pr_session', m.session);
+      G.session = m.session; if (!G.offline) lsSet('pr_session', m.session);
       G.me = m.profile;
       updateProfileUI();
       if (G.wantRejoin) { send({ t: 'join', code: G.wantRejoin }); G.wantRejoin = null; }
@@ -1264,7 +1282,8 @@ function frame() {
 initGP({ scene, camera, hemi, sun, T, car, G, send, spawnCar, toast, bigText, sfx, fmtTime, esc, colorCss, worldRoot, coinGroup, spawnPart, camState, openGarage, leaveRoom: () => $('mLeave').click() });
 if (COARSE) setTouch(true);
 window.__pr = { G, car, spawnCar, physics, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); } } };
-try { G.cfg = await (await fetch('config.json', { cache: 'no-cache' })).json(); } catch (e) { G.cfg = {}; }
+try { G.cfg = SERVER ? await (await fetch(SERVER + '/config.json', { cache: 'no-cache' })).json() : {}; } catch (e) { G.cfg = {}; }
+$('offlineBtn').onclick = () => goOffline();
 setupGoogle();
 requestAnimationFrame(frame);
 connect();

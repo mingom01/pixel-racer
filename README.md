@@ -75,6 +75,18 @@ node server.js
 
 > 구글 로그인은 `localhost` 또는 `https://` 주소에서만 됩니다. 와이파이 IP(`http://192.168.x.x`)로 들어온 친구는 게스트로 하거나, 아래처럼 https 주소를 만들어 주세요.
 
+## GitHub Pages 에서 바로 하기
+
+https://mingom01.github.io/pixel-racer/ 에 들어가면 바로 게임이 열립니다.
+GitHub Pages 는 파일만 보여줄 수 있고 게임 서버는 못 돌려서, 서버가 없으면 **혼자 하기 (오프라인)** 로 실행돼요. 코인·차는 그 브라우저에 저장됩니다.
+
+아래처럼 Render 에 서버를 올린 뒤 `public/net-config.js` 에 주소를 넣으면, 같은 GitHub Pages 링크에서 친구들과 온라인으로 할 수 있어요.
+
+```js
+window.PR_SERVER = 'https://pixel-racer-xxxx.onrender.com';
+```
+(구글 로그인을 쓰려면 OAuth 의 승인된 JavaScript 원본에 `https://mingom01.github.io` 도 추가)
+
 ## 인터넷에 올리기 (Render + Supabase, 무료)
 
 친구들이 어디서든 접속하고, 구글 계정에 코인·차가 저장되게 하는 방법입니다.
@@ -107,7 +119,7 @@ node server.js
 
 ```
 server.js          HTTP + WebSocket 서버 (방/계정/코인/레이스)
-gp_server.js       레이싱 방 (대기실/예선/결승/포인트)
+index.html         GitHub Pages 용 (public/ 로 이동)
 store.js           계정 저장 (Supabase 또는 data/accounts.json)
 render.yaml        Render 배포 설정
 supabase.sql       Supabase 계정 표 만들기
@@ -118,6 +130,9 @@ public/
   world.js         맵 정의 (서버·클라이언트 공용)
   game.js          렌더링, 물리, 네트워크, UI
   gp.js            레이싱 방 클라이언트 (경기장, 아이템, HUD)
+  gp_rules.js      레이싱 방 규칙 (서버·오프라인 공용)
+  local.js         서버 없이 혼자 하기 (오프라인)
+  net-config.js    접속할 게임 서버 주소
   models.js        복셀 자동차 / 맵 메쉬
   tex.js           16x16 픽셀 텍스처
   audio.js         효과음

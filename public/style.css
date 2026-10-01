@@ -325,3 +325,8 @@ body.touch #gpLobbyBtn { top: calc(var(--mm) + 70px); }
   body.touch #gpLobbyBtn { top: 130px; }
   body.touch #itemBtn { bottom: calc(var(--tb) * 2 + 30px); }
 }
+
+/* 오프라인 (GitHub Pages 등 서버 없음) */
+.offline-note { display: none; width: min(980px, 100%); font-size: 12px; color: #ffe27a; }
+body.offline .offline-note { display: block; }
+body.offline #quickBtn, body.offline #refreshBtn, body.offline #saveGoogleBtn { display: none !important; }

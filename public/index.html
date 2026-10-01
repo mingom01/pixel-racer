@@ -39,6 +39,7 @@
     <button class="btn gold" id="garageBtn">차고</button>
     <button class="btn small" id="logoutBtn">로그아웃</button>
   </div>
+  <div class="offline-note dark">혼자 하기 (오프라인) · 서버 없이 실행 중이라 친구와는 못 놀아요 · 코인과 차는 이 브라우저에 저장돼요</div>
   <div class="lobby-main">
     <div class="panel">
       <div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">공개 방</h2>
@@ -217,9 +218,11 @@
   </div>
 </div>
 
-<div id="conn" class="dark hidden">서버에 연결 중...</div>
+<div id="conn" class="dark hidden"><span id="connMsg">서버에 연결 중...</span> <button class="btn small hidden" id="offlineBtn">혼자 하기 (오프라인)</button></div>
 
+<script src="net-config.js"></script>
 <script src="world.js"></script>
+<script src="gp_rules.js"></script>
 <script type="module" src="game.js"></script>
 </body>
 </html>

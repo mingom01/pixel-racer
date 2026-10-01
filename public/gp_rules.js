@@ -1,8 +1,10 @@
-// 레이싱 방 (그랑프리) 서버 로직: 대기실 → (예선) → 결승 → 결과/포인트 → 대기실
+// 레이싱 방 (그랑프리) 규칙: 대기실 → (예선) → 결승 → 결과/포인트 → 대기실
+// 서버(server.js)와 오프라인 혼자 하기(local.js)가 같이 쓴다.
+(function (root) {
 const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]; // F1 포인트
-const QUALI_MS = +process.env.GP_QUALI_MS || 75000;
+const QUALI_MS = (typeof process !== 'undefined' && +process.env.GP_QUALI_MS) || 75000;
 
-module.exports = function makeGP({ W, broadcast, save, profileOf, log }) {
+function makeGP({ W, broadcast, save, profileOf, log }) {
   const ARENA_IDS = W.arenas.map(a => a.id);
   let objSeq = 0;
 
@@ -221,4 +223,8 @@ module.exports = function makeGP({ W, broadcast, save, profileOf, log }) {
   }
 
   return { init, join, leave, handle, tick, push };
-};
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = makeGP;
+else root.makeGP = makeGP;
+})(this);
