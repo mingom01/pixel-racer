@@ -1,0 +1,19 @@
+# Render 블루프린트: New → Blueprint 에서 이 저장소를 고르면 아래대로 서버가 만들어집니다.
+services:
+  - type: web
+    name: pixel-racer
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true

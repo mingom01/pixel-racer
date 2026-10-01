@@ -1,0 +1,13 @@
+{
+  "name": "pixel-racer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "친구들과 하는 3D 픽셀 레이싱 게임 (의존성 없는 Node 서버)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

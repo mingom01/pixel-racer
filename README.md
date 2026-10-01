@@ -75,24 +75,49 @@ node server.js
 
 > 구글 로그인은 `localhost` 또는 `https://` 주소에서만 됩니다. 와이파이 IP(`http://192.168.x.x`)로 들어온 친구는 게스트로 하거나, 아래처럼 https 주소를 만들어 주세요.
 
-## 멀리 있는 친구와 하기
+## 인터넷에 올리기 (Render + Supabase, 무료)
 
-집 밖의 친구와 하려면 서버를 인터넷에 열어야 합니다.
+친구들이 어디서든 접속하고, 구글 계정에 코인·차가 저장되게 하는 방법입니다.
 
-- **간단한 방법 (Cloudflare 터널)**: [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) 설치 후
-  `cloudflared tunnel --url http://localhost:8160` → 나오는 `https://….trycloudflare.com` 주소를 친구에게 공유. (구글 로그인을 쓰려면 이 주소를 승인된 JavaScript 원본에 추가)
-- **호스팅**: Render, Railway, Fly.io 같은 곳에 이 폴더를 올리고 `node server.js` 로 실행 (WebSocket 지원 필요). 환경변수 `PORT`, `GOOGLE_CLIENT_ID` 를 읽습니다. 계정 데이터는 `data/accounts.json` 에 저장되니 디스크가 유지되는 곳을 쓰세요.
+### 1. Supabase (계정 저장용 DB)
+1. https://supabase.com 가입 → **New project** (지역: Northeast Asia (Seoul))
+2. 왼쪽 **SQL Editor** → 이 저장소의 `supabase.sql` 내용을 붙여넣고 **Run**
+3. **Project Settings → API Keys** 에서 두 값을 복사
+   - **Project URL** (`https://xxxx.supabase.co`)
+   - **secret 키** (`sb_secret_...`, 예전 화면이면 `service_role` 키) — 절대 공개하지 마세요
+
+### 2. Render (게임 서버)
+1. https://render.com 에 GitHub 로 가입 → **New → Blueprint** → 이 저장소 선택 (`render.yaml` 대로 만들어짐)
+2. 환경변수 입력: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `GOOGLE_CLIENT_ID`(3번에서)
+3. 배포가 끝나면 `https://pixel-racer-xxxx.onrender.com` 같은 주소가 생깁니다. 이 주소를 친구에게 공유!
+   - 무료 서버는 15분 동안 아무도 없으면 잠들어서, 처음 접속할 때 1분쯤 걸려요.
+
+### 3. 구글 로그인
+아래 "구글 로그인 켜기"대로 클라이언트 ID를 만들고, **승인된 JavaScript 원본**에 Render 주소(`https://….onrender.com`)를 추가 → 그 ID를 Render 환경변수 `GOOGLE_CLIENT_ID` 에 넣으면 끝.
+
+> GitHub 에 push 하면 Render 가 자동으로 다시 배포합니다. 계정은 Supabase 에 있으니 재배포해도 코인·차가 그대로예요.
+> 게스트로 하던 사람은 로비의 **구글로 저장하기** 버튼으로 지금까지 모은 걸 구글 계정으로 옮길 수 있어요.
+
+## 같은 와이파이 / 터널
+
+- 같은 와이파이: 서버 창에 나오는 `http://192.168.x.x:8160` 주소 (구글 로그인은 안 되고 게스트만)
+- Cloudflare 터널: `cloudflared tunnel --url http://localhost:8160` → `https://….trycloudflare.com` (주소가 매번 바뀜)
 
 ## 파일 구조
 
 ```
 server.js          HTTP + WebSocket 서버 (방/계정/코인/레이스)
-config.json        포트, 구글 클라이언트 ID
-data/accounts.json 계정 저장 (자동 생성)
+gp_server.js       레이싱 방 (대기실/예선/결승/포인트)
+store.js           계정 저장 (Supabase 또는 data/accounts.json)
+render.yaml        Render 배포 설정
+supabase.sql       Supabase 계정 표 만들기
+config.json        포트, 구글 클라이언트 ID (환경변수로도 가능)
+data/              로컬 계정 저장 (자동 생성, git 제외)
 public/
   index.html, style.css   화면
   world.js         맵 정의 (서버·클라이언트 공용)
   game.js          렌더링, 물리, 네트워크, UI
+  gp.js            레이싱 방 클라이언트 (경기장, 아이템, HUD)
   models.js        복셀 자동차 / 맵 메쉬
   tex.js           16x16 픽셀 텍스처
   audio.js         효과음

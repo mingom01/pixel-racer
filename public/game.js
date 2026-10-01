@@ -984,7 +984,8 @@ function updateProfileUI() {
   const p = G.me;
   if (!p) return;
   $('myName').textContent = p.name;
-  $('acctTag').textContent = p.google ? '구글 계정' : '게스트';
+  $('acctTag').textContent = p.google ? '구글 계정 (자동 저장)' : '게스트';
+  $('saveGoogleBtn').classList.toggle('hidden', !!p.google || !G.cfg.googleClientId);
   $('myCoins').textContent = p.coins;
   $('hCoins').textContent = p.coins;
   $('gCoins').textContent = p.coins;
@@ -1151,6 +1152,12 @@ $('gClose').onclick = closeGarage;
 $('renameBtn').onclick = () => {
   const n = prompt('새 닉네임 (최대 12자)', G.me.name);
   if (n && n.trim()) send({ t: 'name', name: n.trim() });
+};
+// 게스트 → 구글 계정으로 옮기기 (같은 브라우저의 게스트 기록이 새 구글 계정으로 합쳐짐)
+$('saveGoogleBtn').onclick = () => {
+  $('loginInfo').textContent = '구글로 로그인하면 지금까지 모은 코인과 차가 구글 계정에 저장돼서 다른 기기에서도 이어서 할 수 있어요. (처음 쓰는 구글 계정일 때만 합쳐져요)';
+  $('loginInfo').classList.remove('hidden');
+  showScreen('login');
 };
 $('logoutBtn').onclick = () => {
   lsSet('pr_session', null); G.session = null;

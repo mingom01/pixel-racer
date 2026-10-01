@@ -4,11 +4,11 @@
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const W = require('./public/world.js');
 const makeGP = require('./gp_server.js');
+const makeStore = require('./store.js');
 
 const ROOT = path.join(__dirname, 'public');
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const CONFIG_FILE = path.join(__dirname, 'config.json');
-const ACC_FILE = path.join(DATA_DIR, 'accounts.json');
 
 if (!fs.existsSync(CONFIG_FILE)) fs.writeFileSync(CONFIG_FILE, JSON.stringify({ port: 8160, googleClientId: '' }, null, 2));
 const CONFIG = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
@@ -17,19 +17,10 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || CONFIG.googleClientId |
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.ico': 'image/x-icon', '.svg': 'image/svg+xml' };
 
-/* ---------- 계정 저장소 ---------- */
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-let DB = { users: {}, sessions: {} };
-try { DB = JSON.parse(fs.readFileSync(ACC_FILE, 'utf8')); } catch (e) { /* 새로 시작 */ }
-let saveTimer = null;
-function save() {
-  if (saveTimer) return;
-  saveTimer = setTimeout(() => {
-    saveTimer = null;
-    const tmp = ACC_FILE + '.tmp';
-    fs.writeFile(tmp, JSON.stringify(DB), err => { if (!err) fs.rename(tmp, ACC_FILE, () => {}); });
-  }, 1500);
-}
+/* ---------- 계정 저장소 (store.js: Supabase 또는 로컬 파일) ---------- */
+const STORE = makeStore({ dataDir: DATA_DIR, log: s => log(s) });
+const DB = { users: STORE.users };
+const save = () => STORE.save();
 function cleanName(s) {
   s = String(s || '').replace(/[<>&"'`\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 12);
   return s || '드라이버' + Math.floor(Math.random() * 900 + 100);
@@ -37,12 +28,7 @@ function cleanName(s) {
 function newUser(name, google) {
   return { name: cleanName(name), coins: 0, owned: ['hatch'], car: 'hatch', color: Math.floor(Math.random() * W.COLORS.length), google: !!google, created: Date.now(), races: 0, wins: 0 };
 }
-function newSession(uid) {
-  const tok = crypto.randomBytes(24).toString('base64url');
-  DB.sessions[tok] = uid;
-  save();
-  return tok;
-}
+function newSession(uid) { return STORE.makeToken(uid); }
 function profileOf(uid) {
   const u = DB.users[uid];
   return { id: uid, name: u.name, coins: u.coins, owned: u.owned, car: u.car, color: u.color, google: u.google, races: u.races || 0, wins: u.wins || 0 };
@@ -61,6 +47,7 @@ async function verifyGoogle(idToken) {
 /* ---------- HTTP ---------- */
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]);
+  if (p === '/healthz') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
   if (p === '/config.json') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
     return res.end(JSON.stringify({ googleClientId: GOOGLE_CLIENT_ID }));
@@ -300,9 +287,14 @@ function onCheckpoint(c, i, x, z) {
 
 /* ---------- 메시지 처리 ---------- */
 async function handleAuth(c, msg) {
+  try { await doAuth(c, msg); }
+  catch (e) { log('로그인 오류: ' + e.message); c.send({ t: 'authFail', msg: '서버 저장소에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.' }); }
+}
+async function doAuth(c, msg) {
   let uid = null;
-  if (msg.session && DB.sessions[msg.session] && DB.users[DB.sessions[msg.session]]) {
-    uid = DB.sessions[msg.session];
+  const sid = msg.session ? STORE.readToken(msg.session) : null;
+  if (sid && await STORE.get(sid)) {
+    uid = sid;
     c.uid = uid;
     c.send({ t: 'authed', session: msg.session, profile: profileOf(uid) });
   } else if (msg.google) {
@@ -310,11 +302,11 @@ async function handleAuth(c, msg) {
     try { info = await verifyGoogle(String(msg.google)); }
     catch (e) { c.send({ t: 'authFail', msg: e.message }); return; }
     uid = 'G' + info.sub;
-    if (!DB.users[uid]) {
+    if (!(await STORE.get(uid))) {
       DB.users[uid] = newUser(info.given_name || info.name || '드라이버', true);
       // 이 브라우저의 게스트 진행상황을 옮겨줌
       const gid = msg.guest ? 'U' + crypto.createHash('sha256').update(String(msg.guest)).digest('hex').slice(0, 20) : null;
-      const g = gid && DB.users[gid];
+      const g = gid && await STORE.get(gid);
       if (g && !g.merged) {
         const nu = DB.users[uid];
         nu.coins += g.coins; nu.owned = [...new Set([...nu.owned, ...g.owned])]; nu.car = g.car; nu.color = g.color;
@@ -325,7 +317,7 @@ async function handleAuth(c, msg) {
     c.send({ t: 'authed', session: newSession(uid), profile: profileOf(uid) });
   } else if (msg.guest) {
     uid = 'U' + crypto.createHash('sha256').update(String(msg.guest)).digest('hex').slice(0, 20);
-    if (!DB.users[uid]) DB.users[uid] = newUser(msg.name, false);
+    if (!(await STORE.get(uid))) DB.users[uid] = newUser(msg.name, false);
     else if (msg.name) DB.users[uid].name = cleanName(msg.name);
     c.uid = uid;
     c.send({ t: 'authed', session: newSession(uid), profile: profileOf(uid) });
@@ -480,10 +472,15 @@ GP = makeGP({ W, broadcast, save, profileOf, log });
 
 function log(s) { console.log(new Date().toLocaleTimeString() + '  ' + s); }
 
+// 배포 서버가 꺼질 때(재배포 등) 마지막 변경사항 저장
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, async () => { log('종료 중... 저장'); await STORE.flush(); process.exit(0); });
+setInterval(() => STORE.flush(), 15000);
+
 server.listen(PORT, () => {
   const nets = require('os').networkInterfaces();
   const ips = Object.values(nets).flat().filter(n => n && n.family === 'IPv4' && !n.internal).map(n => n.address);
   console.log(`픽셀 레이서 서버: http://localhost:${PORT}`);
   if (ips.length) console.log('같은 와이파이의 친구는: ' + ips.map(ip => `http://${ip}:${PORT}`).join('  '));
   console.log(GOOGLE_CLIENT_ID ? '구글 로그인: 켜짐' : '구글 로그인: 꺼짐 (config.json 에 googleClientId 를 넣으면 켜집니다)');
+  STORE.check().then(k => console.log('계정 저장소: ' + (k === 'supabase' ? 'Supabase (DB)' : 'data/accounts.json (이 컴퓨터)'))).catch(e => console.log('계정 저장소 연결 실패: ' + e.message));
 });

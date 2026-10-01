@@ -24,6 +24,7 @@
       <label class="lb" for="guestName">닉네임</label>
       <div class="row"><input id="guestName" maxlength="12" placeholder="닉네임 입력"><button id="guestBtn" class="btn green">게스트로 시작</button></div>
       <div class="muted">게스트 기록은 이 브라우저에만 저장돼요. 나중에 구글로 로그인하면 코인과 차가 옮겨져요.</div>
+      <div id="loginInfo" class="muted hidden" style="color:#2a6a2a"></div>
       <div id="loginErr" class="muted" style="color:#b53a2e"></div>
     </div>
   </div>
@@ -33,7 +34,7 @@
 <div id="lobby" class="screen hidden">
   <div class="title" style="font-size:clamp(28px,6vw,44px);margin-top:6px">PIXEL RACER</div>
   <div class="topbar dark">
-    <div class="who"><span class="name" id="myName"></span><button class="btn small" id="renameBtn">이름 변경</button><span class="tag" id="acctTag"></span></div>
+    <div class="who"><span class="name" id="myName"></span><button class="btn small" id="renameBtn">이름 변경</button><span class="tag" id="acctTag"></span><button class="btn small green hidden" id="saveGoogleBtn">구글로 저장하기</button></div>
     <div class="coins"><span class="coin-ico big"></span> <span id="myCoins">0</span></div>
     <button class="btn gold" id="garageBtn">차고</button>
     <button class="btn small" id="logoutBtn">로그아웃</button>
