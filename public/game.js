@@ -1221,7 +1221,9 @@ async function setupGoogle() {
   const id = G.cfg.googleClientId;
   if (!id) {
     const n = $('gnote');
-    n.innerHTML = '구글 로그인은 아직 설정되지 않았어요.<br>race 폴더의 <b>config.json</b> 에 googleClientId 를 넣으면 켜져요 (README 참고).';
+    n.innerHTML = !SERVER
+      ? '지금은 <b>혼자 하기 (오프라인)</b> 모드예요. 코인과 차는 이 브라우저에 저장돼요.<br>친구와 같이 하고 구글 계정에 저장하려면 게임 서버(Render)가 필요해요.'
+      : '구글 로그인은 아직 설정되지 않았어요.<br>race 폴더의 <b>config.json</b> 에 googleClientId 를 넣으면 켜져요 (README 참고).';
     n.classList.remove('hidden');
     return;
   }
