@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>픽셀 레이서</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="c3d"></canvas>
+
+<div id="loading" class="screen"><div class="title">PIXEL RACER</div><div>불러오는 중...</div></div>
+
+<!-- 로그인 -->
+<div id="login" class="screen hidden">
+  <div>
+    <div class="title">PIXEL RACER</div>
+    <div class="subtitle">친구들과 달리는 픽셀 레이싱</div>
+    <div class="panel box">
+      <div id="gbtn"></div>
+      <div id="gnote" class="hidden"></div>
+      <div class="or">- 또는 -</div>
+      <label class="lb" for="guestName">닉네임</label>
+      <div class="row"><input id="guestName" maxlength="12" placeholder="닉네임 입력"><button id="guestBtn" class="btn green">게스트로 시작</button></div>
+      <div class="muted">게스트 기록은 이 브라우저에만 저장돼요. 나중에 구글로 로그인하면 코인과 차가 옮겨져요.</div>
+      <div id="loginErr" class="muted" style="color:#b53a2e"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 로비 -->
+<div id="lobby" class="screen hidden">
+  <div class="title" style="font-size:clamp(28px,6vw,44px);margin-top:6px">PIXEL RACER</div>
+  <div class="topbar dark">
+    <div class="who"><span class="name" id="myName"></span><button class="btn small" id="renameBtn">이름 변경</button><span class="tag" id="acctTag"></span></div>
+    <div class="coins"><span class="coin-ico big"></span> <span id="myCoins">0</span></div>
+    <button class="btn gold" id="garageBtn">차고</button>
+    <button class="btn small" id="logoutBtn">로그아웃</button>
+  </div>
+  <div class="lobby-main">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">공개 방</h2>
+        <div class="row"><button class="btn small" id="refreshBtn">새로고침</button><button class="btn green" id="quickBtn">빠른 참가</button></div></div>
+      <div class="rooms" id="roomList"></div>
+    </div>
+    <div class="col">
+      <div class="panel col">
+        <h2>방 만들기</h2>
+        <div class="seg"><button class="btn on" id="kindFree">자유 주행 방</button><button class="btn" id="kindGp">레이싱 방</button></div>
+        <div class="muted" id="kindNote">맵을 돌아다니며 코인을 모으고, 방장이 가끔 레이스를 열어요.</div>
+        <input id="roomName" maxlength="16" placeholder="방 이름">
+        <div class="seg"><button class="btn on" id="pubBtn">공개 방</button><button class="btn" id="privBtn">비공개 방</button></div>
+        <div class="row"><label class="lb" for="maxSel">최대 인원</label>
+          <select id="maxSel"><option>2</option><option>4</option><option>6</option><option selected>8</option><option>12</option></select>
+          <button class="btn green" id="createBtn" style="flex:1">만들기</button></div>
+        <div class="muted" id="privNote">공개 방은 목록에 보여요. 비공개 방은 코드를 아는 친구만 들어와요.</div>
+      </div>
+      <div class="panel col">
+        <h2>코드로 참가</h2>
+        <div class="row"><input id="codeIn" maxlength="5" placeholder="방 코드 (5자리)" style="text-transform:uppercase;letter-spacing:3px"><button class="btn" id="joinBtn">참가</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="help dark touch-only">
+    <b>휴대폰 조작</b>: 왼쪽 아래를 <b>좌우로 드래그</b>해서 핸들 · 오른쪽 <b>GO</b> 가속, <b>브레이크</b>(후진), <b>드리프트</b> · 오른쪽 위 버튼으로 복귀/카메라/경적/지도/채팅 · 왼쪽 위 <b>메뉴</b>에서 레이스·차고·설정(자동 가속, 버튼 핸들). 가로로 눕히면 더 넓게 보여요.<br>
+    길 위의 <span class="coin-ico"></span> 코인(5)과 초록 보석(25)을 모아 차고에서 새 차를 사세요.
+  </div>
+  <div class="help dark kb-only">
+    <span class="kbd">W A S D</span>/<span class="kbd">방향키</span> 운전 &nbsp;
+    <span class="kbd">Space</span> 드리프트(핸드브레이크) &nbsp;
+    <span class="kbd">R</span> 도로로 복귀 &nbsp;
+    <span class="kbd">C</span> 카메라 &nbsp;
+    <span class="kbd">H</span> 경적 &nbsp;
+    <span class="kbd">M</span> 전체 지도 &nbsp;
+    <span class="kbd">Enter</span> 채팅 &nbsp;
+    <span class="kbd">Esc</span> 메뉴 (레이스 시작/차고)<br>
+    길 위의 <span class="coin-ico"></span> 코인(5)과 초록 보석(25)을 모아 차고에서 새 차를 사세요. 레이스 순위에 따라 보너스 코인!
+  </div>
+</div>
+
+<!-- 차고 -->
+<div id="garage" class="screen hidden">
+  <div class="panel">
+    <div class="col">
+      <h2>차고</h2>
+      <div class="coins" style="color:#8a6a00"><span class="coin-ico"></span> <span id="gCoins">0</span></div>
+      <div class="carlist" id="carList"></div>
+    </div>
+    <div class="col">
+      <canvas id="preview" width="320" height="240"></canvas>
+      <div class="colors" id="colorList"></div>
+    </div>
+    <div class="col">
+      <h3 id="gName" style="font-size:18px"></h3>
+      <div class="desc" id="gDesc"></div>
+      <div class="stats" id="gStats"></div>
+      <button class="btn green" id="gAction"></button>
+      <button class="btn" id="gClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 게임 HUD -->
+<div id="hud" class="hidden">
+  <div id="roombox" class="dark">
+    <div class="rt"><span id="rName"></span><span class="code" id="rCode" title="클릭해서 복사"></span></div>
+    <div id="plist"></div>
+  </div>
+  <div id="coinbox"><span class="coin-ico big"></span><span id="hCoins">0</span></div>
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div id="racebox" class="hidden"></div>
+  <div id="big" class="hidden"></div>
+  <div id="wrongway" class="hidden">역주행!</div>
+  <div id="gphud" class="hidden">
+    <div id="gpTop"></div>
+    <div id="gpBoard" class="hidden"></div>
+    <div id="gpSlots"></div>
+    <button class="btn gold" id="gpLobbyBtn">대기실</button>
+  </div>
+  <div id="toasts"></div>
+  <div id="speedo"><div class="v" id="spd">0</div><div class="u">km/h</div><div class="car" id="carName"></div></div>
+  <div id="chat"><div id="chatlog"></div><form id="chatform" class="hidden" autocomplete="off"><input id="chatin" maxlength="80" placeholder="메시지 입력 후 Enter" enterkeyhint="send"><button class="btn small touch-only" type="submit">보내기</button></form></div>
+  <div id="actions" class="touch-only">
+    <button class="ab" data-a="respawn">복귀</button><button class="ab" data-a="cam">카메라</button><button class="ab" data-a="honk">경적</button><button class="ab" data-a="map">지도</button><button class="ab" data-a="chat">채팅</button><button class="ab" data-a="full" id="fullBtn">전체<br>화면</button>
+  </div>
+  <div id="hint"><span class="kbd">Esc</span> 메뉴 · <span class="kbd">Enter</span> 채팅 · <span class="kbd">R</span> 복귀 · <span class="kbd">Space</span> 드리프트 · <span class="kbd">M</span> 지도</div>
+</div>
+<div id="bigmap" class="hidden"><canvas id="bigmapc" width="640" height="640"></canvas></div>
+
+<div id="touch" class="hidden">
+  <div id="steerpad"><div class="track"></div><div class="knob"></div><span class="lbl">&lt; 좌우로 드래그 &gt;</span></div>
+  <div id="steerbtns" class="hidden"><div class="tb" data-k="left">&lt;</div><div class="tb" data-k="right">&gt;</div></div>
+  <div id="itemBtn" class="hidden"></div>
+  <div id="pedals"><div class="tb sm" data-k="drift">드리프트</div><div class="tb sm" data-k="brake">브레이크</div><div class="tb gas" data-k="gas">GO</div></div>
+</div>
+
+<!-- 메뉴 -->
+<div id="menu" class="screen hidden">
+  <div class="panel">
+    <h2>메뉴</h2>
+    <button class="btn green" id="mResume">계속하기</button>
+    <button class="btn gold" id="mGarage">차고</button>
+    <button class="btn green hidden" id="mLobby">대기실 열기</button>
+    <div class="sec" id="mRaceSec">
+      <b>레이스</b>
+      <div id="mRaceHost" class="col">
+        <div class="row"><label class="lb">코스</label><select id="mTrack" style="flex:1"></select></div>
+        <div class="row"><label class="lb">바퀴 수</label><select id="mLaps" style="flex:1"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
+        <button class="btn red" id="mRaceStart">레이스 시작! (방 전원 참가)</button>
+      </div>
+      <button class="btn" id="mRaceCancel">레이스 취소</button>
+      <div class="muted" id="mRaceNote"></div>
+    </div>
+    <div class="sec">
+      <b>설정</b>
+      <div class="row"><label class="lb">픽셀 크기</label><div class="seg" id="mPix" style="flex:1"><button class="btn small" data-v="1">1x</button><button class="btn small" data-v="2">2x</button><button class="btn small" data-v="3">3x</button><button class="btn small" data-v="4">4x</button></div></div>
+      <div class="row"><label class="lb">그림자</label><div class="seg" id="mShadow" style="flex:1"><button class="btn small" data-v="1">켜기</button><button class="btn small" data-v="0">끄기</button></div></div>
+      <div class="row touch-only"><label class="lb">핸들</label><div class="seg" id="mSteer" style="flex:1"><button class="btn small" data-v="pad">드래그</button><button class="btn small" data-v="btn">버튼</button></div></div>
+      <div class="row touch-only"><label class="lb">자동 가속</label><div class="seg" id="mAuto" style="flex:1"><button class="btn small" data-v="1">켜기</button><button class="btn small" data-v="0">끄기</button></div></div>
+      <div class="row"><label class="lb">소리</label><input type="range" id="mVol" min="0" max="100" style="flex:1"></div>
+    </div>
+    <button class="btn red" id="mLeave">방 나가기</button>
+  </div>
+</div>
+
+<!-- 레이싱 방 대기실 -->
+<div id="gplobby" class="screen hidden">
+  <div class="panel">
+    <div class="gl-head"><h2>대기실</h2><span class="muted" id="glTitle"></span></div>
+    <div class="gl-grid">
+      <div class="col">
+        <b>참가자</b>
+        <div id="glPlayers"></div>
+        <div class="row hidden" id="glTeamBtns"><button class="btn small red" id="glRed">레드팀으로</button><button class="btn small" id="glBlue" style="background:#3a5aa8">블루팀으로</button></div>
+        <b>시즌 순위 <span class="muted" id="glRaces"></span></b>
+        <table id="glSeason"></table>
+      </div>
+      <div class="col">
+        <b>경기 설정 <span class="muted">(방장만 변경)</span></b>
+        <div class="row"><label class="lb">트랙</label><select id="glTrack" style="flex:1"></select></div>
+        <div class="muted" id="glTrackDesc"></div>
+        <div class="row"><label class="lb">모드</label><div class="seg" id="glMode" style="flex:1"><button class="btn small" data-v="speed">스피드전</button><button class="btn small" data-v="item">아이템전</button></div></div>
+        <div class="muted" id="glModeDesc"></div>
+        <div class="row"><label class="lb">방식</label><div class="seg" id="glTeam" style="flex:1"><button class="btn small" data-v="false">개인전</button><button class="btn small" data-v="true">팀전</button></div></div>
+        <div class="row"><label class="lb">바퀴</label><div class="seg" id="glLaps" style="flex:1"><button class="btn small" data-v="1">1</button><button class="btn small" data-v="2">2</button><button class="btn small" data-v="3">3</button><button class="btn small" data-v="4">4</button><button class="btn small" data-v="5">5</button></div></div>
+        <div class="row"><label class="lb">예선</label><div class="seg" id="glQuali" style="flex:1"><button class="btn small" data-v="false">없음 (랜덤 출발)</button><button class="btn small" data-v="true">F1 예선 75초</button></div></div>
+        <div class="muted">포인트: 1위 25 · 2위 18 · 3위 15 · 12 · 10 · 8 · 6 · 4 · 2 · 1, 최고 랩 +1</div>
+      </div>
+    </div>
+    <div class="muted" id="glPhase"></div>
+    <div class="row gl-btns">
+      <button class="btn green" id="glGo" style="flex:2">준비</button>
+      <button class="btn" id="glPractice">연습 주행</button>
+      <button class="btn gold" id="glGarage">차고</button>
+      <button class="btn small" id="glReset">시즌 초기화</button>
+      <button class="btn small red" id="glLeave">나가기</button>
+    </div>
+  </div>
+</div>
+
+<div id="gpres" class="screen hidden">
+  <div class="panel">
+    <h2 id="gpresTitle">결과</h2>
+    <div class="gpres-wrap"><table id="gpresTable"></table></div>
+    <div id="gpresFoot" class="muted"></div>
+    <button class="btn green" id="gpresClose" style="width:100%;margin-top:8px">확인</button>
+  </div>
+</div>
+
+<div id="results" class="screen hidden">
+  <div class="panel">
+    <h2 id="resTitle">레이스 결과</h2>
+    <table id="resTable"></table>
+    <button class="btn green" id="resClose" style="width:100%">확인</button>
+  </div>
+</div>
+
+<div id="conn" class="dark hidden">서버에 연결 중...</div>
+
+<script src="world.js"></script>
+<script type="module" src="game.js"></script>
+</body>
+</html>
