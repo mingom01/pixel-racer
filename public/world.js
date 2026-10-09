@@ -112,6 +112,8 @@
   const tracks = [
     makeTrack('circuit', '그랑프리 서킷', catmullClosed(CIRCUIT_CTRL, 16), 22, 16, true, 5),
     makeTrack('downtown', '다운타운 런', DOWNTOWN_CORNERS, 16, 14, false, 5),
+    makeTrack('outer', '외곽 순환 레이스', [[-60, -200], [-60, 320], [-160, 320], [-160, 160], [-320, 160], [-320, -300], [-60, -300]], 16, 18, false, 5),
+    makeTrack('parkrally', '스턴트 파크 랠리', [[-165, -215], [-165, -170], [-540, -170], [-540, -545], [-165, -545], [-165, -420], [-360, -420], [-360, -300], [-165, -300]], 16, 16, false, 5),
   ];
 
   /* ---------- 레이싱 방 전용 경기장 (본 맵과 멀리 떨어진 곳, 벽으로 막힌 코스) ---------- */
@@ -135,6 +137,16 @@
       id: 'neon', name: '네온 시티 나이트', theme: 'night', w: 18, desc: '밤의 도심 시가지 서킷. 직각 코너 주의',
       ctrl: [[0, -200], [0, 160], [14, 230], [60, 268], [110, 275], [250, 275], [305, 250], [325, 195], [325, 110], [345, 55], [400, 35], [505, 35], [555, 5], [570, -50], [570, -250], [545, -305], [490, -325], [400, -325], [360, -290], [300, -290], [260, -325], [120, -325], [45, -315], [8, -270]],
       jumps: [[0.13, 2.5]], boosts: [0.06, 0.6], items: [0.3, 0.52, 0.85],
+    },
+    {
+      id: 'beach', name: '해변 서킷', theme: 'beach', w: 20, desc: '야자수 늘어선 바닷가의 빠른 고속 서킷',
+      ctrl: [[0, -450], [0, 0], [0, 300], [60, 400], [180, 420], [300, 360], [340, 250], [420, 200], [540, 240], [620, 160], [600, 20], [500, -40], [440, -150], [520, -260], [540, -400], [440, -480], [300, -430], [200, -520], [80, -540]],
+      jumps: [[0.09, 3]], boosts: [0.04, 0.5, 0.78], items: [0.2, 0.47, 0.75],
+    },
+    {
+      id: 'canyon', name: '붉은 협곡', theme: 'canyon', w: 18, desc: '붉은 바위 협곡을 굽이굽이 달리는 점프 코스',
+      ctrl: [[0, -350], [0, 50], [30, 180], [120, 240], [220, 200], [250, 100], [330, 60], [420, 120], [470, 240], [580, 250], [620, 120], [560, 0], [600, -120], [540, -260], [420, -280], [350, -200], [260, -260], [200, -380], [110, -460], [30, -460], [2, -410]],
+      jumps: [[0.07, 3.5], [0.62, 3]], boosts: [0.03, 0.4], items: [0.22, 0.5, 0.8],
     },
   ];
   const arenas = ARENA_DEFS.map((d, k) => {
@@ -168,6 +180,50 @@
 
   const trackById = {};
   for (const t of [...tracks, ...arenas]) trackById[t.id] = t;
+
+  /* ---------- 구간 레이스 (자유 주행 맵의 타임어택) ---------- */
+  // pts: 지나갈 지점들 (열린 경로) 또는 track + from/to (트랙의 일부 구간)
+  const SECTION_DEFS = [
+    { id: 'drag', name: '중앙로 드래그', desc: '쭉 뻗은 중앙로에서 최고 속도 대결', pts: [[-60, -280], [-60, 300]] },
+    { id: 'cityzig', name: '도심 지그재그', desc: '도심 교차로를 연달아 꺾는 코스', pts: [[-160, 170], [-160, 240], [-240, 240], [-240, 320], [-320, 320], [-320, 400], [-400, 400], [-400, 480], [-480, 480], [-480, 552]] },
+    { id: 'cityring', name: '도심 외곽 질주', desc: '도시 바깥쪽 큰길을 크게 도는 코스', pts: [[-560, 170], [-560, 560], [-160, 560], [-160, 400]] },
+    { id: 'parkjump', name: '공원 점프 코스', desc: '점프대 세 개와 고가 플랫폼을 넘는 코스', pts: [[-320, -150], [-320, -235], [-540, -235], [-540, -260], [-340, -260], [-380, -420], [-230, -420], [-180, -420]], w: 18 },
+    { id: 'parkring', name: '파크 외곽 랠리', desc: '흙바닥 스턴트 파크 가장자리를 도는 랠리', pts: [[-150, -160], [-550, -160], [-550, -550], [-150, -550]], w: 18 },
+    { id: 'mega', name: '메가 점프 챌린지', desc: '부스터를 밟고 거대 점프대를 날아라', pts: [[-480, -555], [-480, -380], [-480, -300]], w: 18 },
+    { id: 'circN', name: '서킷 북쪽 헤어핀', desc: '그랑프리 서킷의 헤어핀 구간', track: 'circuit', from: 0.1, to: 0.42 },
+    { id: 'circS', name: '서킷 남쪽 시케인', desc: '그랑프리 서킷의 시케인 구간', track: 'circuit', from: 0.55, to: 0.95 },
+    { id: 'downsprint', name: '다운타운 스프린트', desc: '다운타운 런 코스의 앞쪽 절반', track: 'downtown', from: 0, to: 0.5 },
+    { id: 'grandtour', name: '그랜드 투어', desc: '파크에서 도시를 돌아 중앙로까지 2km 대장정', pts: [[-320, -60], [-320, 160], [-560, 160], [-560, 560], [-160, 560], [-160, 320], [-60, 320], [-60, -250]] },
+  ];
+  function resampleOpen(pts, step) {
+    const out = [pts[0]];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / step));
+      for (let k = 1; k <= n; k++) out.push([a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]);
+    }
+    return out;
+  }
+  const sections = SECTION_DEFS.map(d => {
+    let path, w = d.w || 16;
+    if (d.track) {
+      const t = trackById[d.track], n = t.path.length, i0 = Math.floor(d.from * n), i1 = Math.floor(d.to * n);
+      path = []; for (let i = i0; i <= i1; i++) path.push(t.path[i % n]);
+      w = t.w;
+    } else path = resampleOpen(d.pts, 5);
+    const n = path.length;
+    const tan = path.map((p, i) => {
+      const a = path[Math.max(0, i - 1)], b = path[Math.min(n - 1, i + 1)];
+      const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1;
+      return [dx / l, dz / l];
+    });
+    let length = 0;
+    for (let i = 1; i < n; i++) length += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
+    const nCp = Math.max(2, Math.round(length / 60)), cps = [];
+    for (let k = 1; k <= nCp; k++) cps.push(Math.round(k * (n - 1) / nCp));
+    return { id: d.id, name: d.name, desc: d.desc, path, tan, cps, length, w, reward: Math.round(8 + length / 60) };
+  });
+  const sectionById = {};
+  for (const s of sections) sectionById[s.id] = s;
 
   // 트랙 점 공간 해시 (가장 가까운 점 찾기용)
   for (const t of [...tracks, ...arenas]) {
@@ -607,7 +663,7 @@
   const COLORS = [0xd83a3a, 0x3a6fd8, 0xf2c230, 0x3aa64a, 0xf2f2f2, 0x2a2a2e, 0xe0782a, 0x9a4ad8, 0x38c8c8, 0xf27aa8];
 
   const W = {
-    HALF, CITY, PARK, roads, ramps, platforms, boosts, tracks, trackById, buildings, trees, cityParks, lots, coins, lamps, canopies, pads, arenas, arenaAt,
+    HALF, CITY, PARK, roads, ramps, platforms, boosts, tracks, trackById, buildings, trees, cityParks, lots, coins, lamps, canopies, pads, arenas, arenaAt, sections, sectionById,
     CARS, carById, COLORS,
     groundHeight, surfaceAt, boostAt, collide, nearestOnTrack, gridSlot, spawnPoint, respawnPoint, inPark, inCity, rng,
   };

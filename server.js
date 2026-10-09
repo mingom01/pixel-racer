@@ -31,7 +31,7 @@ function newUser(name, google) {
 function newSession(uid) { return STORE.makeToken(uid); }
 function profileOf(uid) {
   const u = DB.users[uid];
-  return { id: uid, name: u.name, coins: u.coins, owned: u.owned, car: u.car, color: u.color, google: u.google, races: u.races || 0, wins: u.wins || 0 };
+  return { id: uid, name: u.name, coins: u.coins, owned: u.owned, car: u.car, color: u.color, google: u.google, races: u.races || 0, wins: u.wins || 0, sec: u.sec || {} };
 }
 
 async function verifyGoogle(idToken) {
@@ -421,6 +421,8 @@ function handle(c, msg) {
       break;
     }
     case 'honk': if (r) broadcast(r, { t: 'honk', id: c.id }, c); break;
+    case 'secDone': onSection(c, msg); break;
+    case 'secInfo': c.send({ t: 'secAll', top: secTop(3), mine: u.sec || {} }); break;
     case 'bump': {
       // 범퍼카: 들이받은 쪽이 맞은 차에 밀림 전달
       const o = r && r.clients.get(String(msg.to));
@@ -470,6 +472,48 @@ setInterval(() => {
 }, 500);
 
 GP = makeGP({ W, broadcast, save, profileOf, log });
+
+/* ---------- 구간 레이스 기록 ---------- */
+// 전체 기록은 계정 저장소의 '_records' 행 하나에 보관 (Supabase / 파일 둘 다)
+let RECS = null;
+STORE.get('_records').then(d => {
+  if (!d) { d = { sections: {} }; STORE.users._records = d; save(); }
+  RECS = d;
+}).catch(e => { log('구간 기록 불러오기 실패: ' + e.message); RECS = { sections: {} }; /* 저장소에 안 붙임 → 덮어쓰지 않음 */ });
+const fmtMs = ms => { const t = ms / 1000, m = Math.floor(t / 60); return m + ':' + (t % 60).toFixed(2).padStart(5, '0'); };
+function secTop(n) {
+  const out = {};
+  if (RECS) for (const id in RECS.sections) out[id] = RECS.sections[id].slice(0, n).map(x => ({ name: x.name, time: x.time }));
+  return out;
+}
+function onSection(c, msg) {
+  const r = c.room, u = c.user;
+  if (!r || r.kind === 'gp' || !RECS) return;
+  const sec = W.sectionById[msg.id], time = Math.round(+msg.time);
+  // 말이 안 되게 빠른 기록(약 340km/h 초과)이나 너무 잦은 완주는 무시
+  if (!sec || !(time > sec.length / 95 * 1000) || time > 600000) return;
+  const now = Date.now();
+  c.secAt = c.secAt || {};
+  if (now - (c.secAt[sec.id] || 0) < time * 0.8) return;
+  c.secAt[sec.id] = now;
+  u.sec = u.sec || {};
+  const pb = !u.sec[sec.id] || time < u.sec[sec.id];
+  if (pb) u.sec[sec.id] = time;
+  const list = (RECS.sections[sec.id] = RECS.sections[sec.id] || []);
+  const prevTop = list[0] ? list[0].time : Infinity;
+  const mine = list.find(x => x.uid === c.uid);
+  if (!mine) list.push({ uid: c.uid, name: u.name, time });
+  else if (time < mine.time) { mine.time = time; mine.name = u.name; }
+  list.sort((a, b) => a.time - b.time);
+  if (list.length > 10) list.length = 10;
+  const record = time < prevTop;
+  const coins = sec.reward + (pb ? 10 : 0) + (record ? 30 : 0);
+  u.coins += coins;
+  save();
+  c.send({ t: 'secRes', id: sec.id, time, best: u.sec[sec.id], pb, record, coins, top: list.slice(0, 5).map(x => ({ name: x.name, time: x.time })) });
+  c.send({ t: 'prof', p: profileOf(c.uid) });
+  if (record) broadcast(r, { t: 'sys', msg: u.name + ` 님이 '${sec.name}' 구간 신기록! ${fmtMs(time)}` });
+}
 
 function log(s) { console.log(new Date().toLocaleTimeString() + '  ' + s); }
 

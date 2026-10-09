@@ -4,6 +4,7 @@ import { makeTextures } from './tex.js';
 import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js';
 import { initAudio, engine, sfx, setVolume } from './audio.js';
 import { makeLocalServer } from './local.js';
+import { initSections, sectionStep, cancelSection, inSection, onSecMsg } from './secrace.js';
 import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js';
 
 const W = window.WORLD;
@@ -495,6 +496,7 @@ function physics(dt) {
 }
 
 function respawn() {
+  if (inSection()) cancelSection();
   if (GP.active) { if (car.respawnCd <= 0) { car.respawnCd = 1; respawnGP(); } return; }
   if (car.respawnCd > 0) return;
   car.respawnCd = 1;
@@ -654,9 +656,9 @@ function updateRemotes(now, dt) {
 /* ================= 네트워크 ================= */
 function send(o) { if (G.ws && G.ws.readyState === 1) G.ws.send(JSON.stringify(o)); }
 let reconnectTimer = null;
-// 접속할 게임 서버: net-config.js 의 PR_SERVER(예: Render 주소) → 없으면 이 페이지를 준 서버.
-// GitHub Pages(github.io)처럼 게임 서버가 없는 곳에서는 혼자 하기(오프라인).
-const SERVER = (window.PR_SERVER || '').replace(/\/+$/, '') || (location.hostname.endsWith('github.io') ? '' : location.origin);
+// 접속할 게임 서버: 게임 서버가 준 페이지면 그 서버, GitHub Pages(github.io)면 net-config.js 의 PR_SERVER(Render).
+// PR_SERVER 가 비어 있으면 혼자 하기(오프라인).
+const SERVER = location.hostname.endsWith('github.io') ? (window.PR_SERVER || '').replace(/\/+$/, '') : location.origin;
 const WS_URL = SERVER.replace(/^http/, 'ws');
 let everOpened = false;
 function goOffline() {
@@ -756,6 +758,7 @@ function onMsg(m) {
       for (let i = 0; i < 8; i++) spawnPart(car.x, car.y + 1, car.z, (Math.random() - 0.5) * 8, Math.random() * 5, (Math.random() - 0.5) * 8, i % 2 ? 0xffd040 : 0xffffff, 0.4, 0.7);
       break;
     }
+    case 'secRes': case 'secAll': onSecMsg(m); break;
     case 'cpSync': if (G.race) G.race.c = m.c; break;
     case 'pong': break;
   }
@@ -946,6 +949,12 @@ baseMap.width = baseMap.height = MAP_PX;
   for (const b of W.buildings) rect(b.x1, b.z1, b.x2, b.z2, '#6a6a72');
   for (const r of W.ramps) { const [x, y] = toMap(r.cx, r.cz); g.fillStyle = '#e0c040'; g.fillRect(x - 2, y - 2, 4, 4); }
   for (const b of W.boosts) { const [x, y] = toMap(b.cx, b.cz); g.fillStyle = '#ff8020'; g.fillRect(x - 2, y - 2, 4, 4); }
+  // 구간 레이스 출발점: 체크무늬 깃발
+  for (const sc of W.sections) {
+    const [x, y] = toMap(sc.path[0][0], sc.path[0][1]), X0 = Math.round(x) - 3, Y0 = Math.round(y) - 3;
+    g.fillStyle = '#000'; g.fillRect(X0 - 1, Y0 - 1, 8, 8);
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { g.fillStyle = (i + j) % 2 ? '#111' : '#fff'; g.fillRect(X0 + i * 2, Y0 + j * 2, 2, 2); }
+  }
 }
 const mm = $('minimap').getContext('2d'), bm = $('bigmapc').getContext('2d');
 mm.imageSmoothingEnabled = false; bm.imageSmoothingEnabled = false;
@@ -1197,6 +1206,7 @@ $('rCode').onclick = () => { navigator.clipboard?.writeText(G.room.code).then(()
 $('mResume').onclick = () => toggleMenu(false);
 $('mGarage').onclick = () => { toggleMenu(false); openGarage(); };
 $('mLobby').onclick = () => { toggleMenu(false); toggleLobby(); };
+$('mSections').onclick = () => { toggleMenu(false); send({ t: 'secInfo' }); };
 $('c3d').addEventListener('pointerdown', () => { if (GP.spectating()) nextSpectate(); });
 $('mLeave').onclick = () => { send({ t: 'leave' }); leaveLocal(); showScreen('lobby'); };
 $('mRaceStart').onclick = () => { send({ t: 'race', track: $('mTrack').value, laps: +$('mLaps').value }); toggleMenu(false); };
@@ -1258,6 +1268,7 @@ function frame() {
     poseModel(car.model, s, dt);
     carFx(s, true, dt);
     if (!GP.active) raceStep(now);
+    sectionStep(now);
     gpFrame(dt, now);
     const sp = Math.hypot(car.vx, car.vz);
     $('spd').textContent = Math.round(sp * 3.6);
@@ -1281,9 +1292,10 @@ function frame() {
 }
 
 /* ================= 시작 ================= */
+initSections({ T, car, G, send, toast, bigText, sfx, fmtTime, esc, gate, worldRoot, GP, gainPop });
 initGP({ scene, camera, hemi, sun, T, car, G, send, spawnCar, toast, bigText, sfx, fmtTime, esc, colorCss, worldRoot, coinGroup, spawnPart, camState, openGarage, leaveRoom: () => $('mLeave').click() });
 if (COARSE) setTouch(true);
-window.__pr = { G, car, spawnCar, physics, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); } } };
+window.__pr = { G, car, spawnCar, physics, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); sectionStep(performance.now()); } } };
 try { G.cfg = SERVER ? await (await fetch(SERVER + '/config.json', { cache: 'no-cache' })).json() : {}; } catch (e) { G.cfg = {}; }
 $('offlineBtn').onclick = () => goOffline();
 setupGoogle();
