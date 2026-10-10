@@ -110,6 +110,9 @@ export function buildWorld(scene, T) {
   // 바닥
   add(flatQuad(-W.HALF - 200, -W.HALF - 200, W.HALF + 200, W.HALF + 200, 0, 4), lambert({ map: T.grass }));
   add(flatQuad(W.PARK.x1, W.PARK.z1, W.PARK.x2, W.PARK.z2, 0.02, 4), lambert({ map: T.dirt }));
+  // 서쪽 바다와 모래사장
+  add(flatQuad(-W.HALF - 200, -W.HALF - 200, W.SEA_X, W.HALF + 200, 0.07, 4), lambert({ map: T.water, emissive: 0x0a2a4a }));
+  add(flatQuad(W.SEA_X, -W.HALF, W.SEA_X + 110, W.HALF, 0.03, 4), lambert({ map: T.sand }));
   add(flatQuad(W.CITY.x1 - 4, W.CITY.z1 - 4, W.CITY.x2 + 4, W.CITY.z2 + 4, 0.02, 4), lambert({ map: T.walk }));
   for (const p of W.cityParks) add(flatQuad(p.x1 + 2, p.z1 + 2, p.x2 - 2, p.z2 - 2, 0.03, 4), lambert({ map: T.grass }));
   for (const l of W.lots) add(flatQuad(l.x1 + 1, l.z1 + 1, l.x2 - 1, l.z2 - 1, 0.03, 4), lambert({ map: T.asphalt }));
@@ -126,12 +129,20 @@ export function buildWorld(scene, T) {
   for (const [x, z, w] of patches) add(flatQuad(x - w / 2, z - w / 2, x + w / 2, z + w / 2, 0.07, 4), asMat);
 
   // 서킷
-  const circ = W.tracks[0];
-  add(ribbon(circ, -circ.w / 2, circ.w / 2, 0.06, 8), lambert({ map: T.roadTrack }));
-  add(ribbon(circ, circ.w / 2, circ.w / 2 + 1.6, 0.09, 4), lambert({ map: T.curb }));
-  add(ribbon(circ, -circ.w / 2 - 1.6, -circ.w / 2, 0.09, 4), lambert({ map: T.curb }));
+  // 코스 노면: circuit(연석) / road(중앙 점선 도로) / runway(활주로)
+  const trackMat = { circuit: lambert({ map: T.roadTrack }), road: lambert({ map: T.roadCity }), runway: lambert({ map: T.runway }) };
+  const curbMat = lambert({ map: T.curb });
+  for (const t of W.tracks) {
+    if (!t.ribbon) continue;
+    const style = t.style || 'circuit';
+    add(ribbon(t, -t.w / 2, t.w / 2, 0.06, style === 'runway' ? 16 : 8), trackMat[style]);
+    if (style === 'circuit') {
+      add(ribbon(t, t.w / 2, t.w / 2 + 1.6, 0.09, 4), curbMat);
+      add(ribbon(t, -t.w / 2 - 1.6, -t.w / 2, 0.09, 4), curbMat);
+      root.add(gantry(t, T));
+    }
+  }
   for (const t of W.tracks) root.add(startLine(t, T));
-  root.add(gantry(circ, T));
 
   // 부스터
   const bMat = lambert({ map: T.boost, emissive: 0x552200 });
@@ -373,6 +384,56 @@ function buildBuilding(root, b, T) {
     case 'pillar':
       mesh(root, boxUV(sx, b.h, sz, 4), matC(null, 0xe8e8e8), cx, b.h / 2, cz);
       break;
+    case 'mountain': {
+      // 계단식 바위산 (위로 갈수록 좁아짐, 높은 산은 눈 덮인 꼭대기)
+      const rock = matC(T.stone, 0xa89a88), grassTop = matC(T.grass), snow = matC(null, 0xf4f8ff);
+      const tiers = [[1, 0.5], [0.72, 0.3], [0.42, 0.2]];
+      let y = 0;
+      tiers.forEach(([k, f], i) => {
+        const w = sx * k, d = sz * k, th = b.h * f;
+        const top = i === 2 && b.snow ? snow : (i === 0 ? grassTop : rock);
+        mesh(root, boxUV(w, th, d, 8), [rock, rock, top, rock, rock, rock], cx + (i ? (sx * 0.06 * (i % 2 ? 1 : -1)) : 0), y + th / 2, cz + (i ? sz * 0.05 : 0));
+        y += th;
+      });
+      break;
+    }
+    case 'hangar': {
+      const wall = matC(T.grate, 0xb8bcc4);
+      mesh(root, boxUV(sx, 11, sz, 4), wall, cx, 5.5, cz);
+      mesh(root, prismRoof(sx + 1, sz + 1, 7, 'z', 4), [matC(T.roof, 0x8a9098, { side: THREE.DoubleSide }), matC(T.grate, 0xb8bcc4, { side: THREE.DoubleSide })], cx, 11, cz);
+      const { g } = faceGroup(root, b, 'pz');
+      mesh(g, new THREE.BoxGeometry(sx * 0.7, 9, 0.3), matC(null, 0x3a3e46), 0, 4.5, 0.1);
+      break;
+    }
+    case 'plane': {
+      // 여객기 (x 방향으로 놓임). 충돌은 동체만
+      const white = matC(null, 0xf2f2f2), blue = matC(null, 0x2a5ab0), grey = matC(null, 0x9aa0a8);
+      mesh(root, new THREE.BoxGeometry(40, 5, 5), white, cx, 4, cz);
+      mesh(root, new THREE.BoxGeometry(4, 3.6, 4), white, cx + 22, 3.6, cz);
+      mesh(root, new THREE.BoxGeometry(34, 0.6, 5.1), blue, cx, 4.6, cz);
+      mesh(root, new THREE.BoxGeometry(7, 0.5, 36), grey, cx + 2, 3.2, cz);
+      mesh(root, new THREE.BoxGeometry(4, 7, 0.6), blue, cx - 18, 8, cz);
+      mesh(root, new THREE.BoxGeometry(4, 0.5, 14), grey, cx - 18, 5.5, cz);
+      for (const s of [-1, 1]) mesh(root, new THREE.CylinderGeometry(1.3, 1.3, 5, 8).rotateZ(Math.PI / 2), grey, cx + 4, 2, cz + s * 8);
+      for (const s of [-1, 1]) mesh(root, new THREE.BoxGeometry(0.5, 1.5, 0.5), matC(null, 0x2a2a2e), cx + s * 6, 0.75, cz);
+      break;
+    }
+    case 'ctower': {
+      mesh(root, boxUV(sx, b.h - 8, sz, 4), matC(T.concrete, 0xe8e8e8), cx, (b.h - 8) / 2, cz);
+      mesh(root, new THREE.CylinderGeometry(8, 6, 6, 8), matC(T.glass, 0x6a98c0), cx, b.h - 5, cz);
+      mesh(root, new THREE.CylinderGeometry(8.6, 8.6, 1.2, 8), matC(null, 0xf0f0f0), cx, b.h - 1.4, cz);
+      mesh(root, new THREE.BoxGeometry(0.4, 6, 0.4), matC(null, 0xd8d8d8), cx, b.h + 2, cz);
+      mesh(root, new THREE.BoxGeometry(0.8, 0.8, 0.8), basic(0xff3030), cx, b.h + 5.2, cz, false);
+      break;
+    }
+    case 'stand': {
+      // 관중석: 트랙(서쪽)을 바라보는 계단
+      const crowd = matC(T.crowd), conc = matC(T.concrete);
+      for (let k = 0; k < 5; k++) mesh(root, boxUV(sx - k * 5, 2.4 + k * 2.4, sz, 4), [conc, crowd, conc, conc, conc, conc], b.x2 - (sx - k * 5) / 2, (2.4 + k * 2.4) / 2, cz);
+      mesh(root, boxUV(sx + 4, 0.8, sz + 4, 4), conc, cx, b.h + 2, cz);
+      for (const z of [b.z1 + 4, cz, b.z2 - 4]) mesh(root, new THREE.BoxGeometry(0.8, b.h + 2, 0.8), conc, b.x2 - 1, (b.h + 2) / 2, z);
+      break;
+    }
     case 'pump':
       mesh(root, new THREE.BoxGeometry(sx, b.h, sz), matC(null, 0xd83a3a), cx, b.h / 2, cz);
       mesh(root, new THREE.BoxGeometry(sx + 0.1, 0.4, sz * 0.6), matC(null, 0xf0f0f0), cx, b.h - 0.35, cz);

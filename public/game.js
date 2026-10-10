@@ -4,7 +4,6 @@ import { makeTextures } from './tex.js';
 import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js';
 import { initAudio, engine, sfx, setVolume } from './audio.js';
 import { makeLocalServer } from './local.js';
-import { initSections, sectionStep, cancelSection, inSection, onSecMsg } from './secrace.js';
 import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js';
 
 const W = window.WORLD;
@@ -322,7 +321,7 @@ function physics(dt) {
   let vf = car.vx * fx + car.vz * fz, vl = car.vx * lx + car.vz * lz;
   const surf = W.surfaceAt(car.x, car.z);
   car.surf = surf;
-  const offPen = !d.off && surf === 'grass' ? 0.55 : (!d.off && surf === 'dirt' ? 0.85 : (surf === 'walk' ? 0.9 : (surf === 'runoff' ? (d.off ? 0.85 : 0.65) : 1)));
+  const offPen = !d.off && surf === 'grass' ? 0.55 : (!d.off && surf === 'dirt' ? 0.85 : (surf === 'walk' ? 0.9 : (surf === 'runoff' ? (d.off ? 0.85 : 0.65) : (surf === 'water' ? 0.3 : 1))));
   const maxV = d.maxV * offPen;
 
   if (car.grounded) {
@@ -496,7 +495,6 @@ function physics(dt) {
 }
 
 function respawn() {
-  if (inSection()) cancelSection();
   if (GP.active) { if (car.respawnCd <= 0) { car.respawnCd = 1; respawnGP(); } return; }
   if (car.respawnCd > 0) return;
   car.respawnCd = 1;
@@ -758,7 +756,6 @@ function onMsg(m) {
       for (let i = 0; i < 8; i++) spawnPart(car.x, car.y + 1, car.z, (Math.random() - 0.5) * 8, Math.random() * 5, (Math.random() - 0.5) * 8, i % 2 ? 0xffd040 : 0xffffff, 0.4, 0.7);
       break;
     }
-    case 'secRes': case 'secAll': onSecMsg(m); break;
     case 'cpSync': if (G.race) G.race.c = m.c; break;
     case 'pong': break;
   }
@@ -931,6 +928,9 @@ baseMap.width = baseMap.height = MAP_PX;
   const g = baseMap.getContext('2d');
   g.fillStyle = '#4f9530'; g.fillRect(0, 0, MAP_PX, MAP_PX);
   const rect = (x1, z1, x2, z2, col) => { const [a, b] = toMap(x2, z2), [c, d] = toMap(x1, z1); g.fillStyle = col; g.fillRect(a, b, c - a, d - b); };
+  rect(-W.HALF, -W.HALF, W.SEA_X, W.HALF, '#3a78c8');
+  rect(W.SEA_X, -W.HALF, W.SEA_X + 110, W.HALF, '#e0c890');
+  for (const p of W.pads) rect(p.x1, p.z1, p.x2, p.z2, '#7a7a80');
   rect(W.PARK.x1, W.PARK.z1, W.PARK.x2, W.PARK.z2, '#8b6a45');
   rect(W.CITY.x1, W.CITY.z1, W.CITY.x2, W.CITY.z2, '#a8a69e');
   g.fillStyle = '#2f6a22';
@@ -941,20 +941,17 @@ baseMap.width = baseMap.height = MAP_PX;
     const [a, b] = toMap(s.x1, s.z1), [c, d] = toMap(s.x2, s.z2);
     g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke();
   }
-  const c0 = W.tracks[0];
-  g.strokeStyle = '#d83a3a'; g.lineWidth = (c0.w + 4) * MAP_S; g.lineJoin = 'round';
-  g.beginPath(); c0.path.forEach((p, i) => { const [x, y] = toMap(p[0], p[1]); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); g.stroke();
-  g.strokeStyle = '#3e3e44'; g.lineWidth = c0.w * MAP_S;
-  g.stroke();
-  for (const b of W.buildings) rect(b.x1, b.z1, b.x2, b.z2, '#6a6a72');
+  g.lineJoin = 'round';
+  for (const t of W.tracks) {
+    if (!t.ribbon) continue;
+    g.beginPath(); t.path.forEach((p, i) => { const [x, y] = toMap(p[0], p[1]); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath();
+    if (t.style === 'circuit') { g.strokeStyle = '#d83a3a'; g.lineWidth = (t.w + 4) * MAP_S; g.stroke(); }
+    g.strokeStyle = t.style === 'runway' ? '#4a4a50' : '#3e3e44'; g.lineWidth = Math.max(2, t.w * MAP_S); g.stroke();
+  }
+  for (const b of W.buildings) rect(b.x1, b.z1, b.x2, b.z2, b.type === 'mountain' ? (b.snow ? '#d8d8d0' : '#8a7a62') : '#6a6a72');
   for (const r of W.ramps) { const [x, y] = toMap(r.cx, r.cz); g.fillStyle = '#e0c040'; g.fillRect(x - 2, y - 2, 4, 4); }
   for (const b of W.boosts) { const [x, y] = toMap(b.cx, b.cz); g.fillStyle = '#ff8020'; g.fillRect(x - 2, y - 2, 4, 4); }
-  // 구간 레이스 출발점: 체크무늬 깃발
-  for (const sc of W.sections) {
-    const [x, y] = toMap(sc.path[0][0], sc.path[0][1]), X0 = Math.round(x) - 3, Y0 = Math.round(y) - 3;
-    g.fillStyle = '#000'; g.fillRect(X0 - 1, Y0 - 1, 8, 8);
-    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { g.fillStyle = (i + j) % 2 ? '#111' : '#fff'; g.fillRect(X0 + i * 2, Y0 + j * 2, 2, 2); }
-  }
+
 }
 const mm = $('minimap').getContext('2d'), bm = $('bigmapc').getContext('2d');
 mm.imageSmoothingEnabled = false; bm.imageSmoothingEnabled = false;
@@ -1206,7 +1203,6 @@ $('rCode').onclick = () => { navigator.clipboard?.writeText(G.room.code).then(()
 $('mResume').onclick = () => toggleMenu(false);
 $('mGarage').onclick = () => { toggleMenu(false); openGarage(); };
 $('mLobby').onclick = () => { toggleMenu(false); toggleLobby(); };
-$('mSections').onclick = () => { toggleMenu(false); send({ t: 'secInfo' }); };
 $('c3d').addEventListener('pointerdown', () => { if (GP.spectating()) nextSpectate(); });
 $('mLeave').onclick = () => { send({ t: 'leave' }); leaveLocal(); showScreen('lobby'); };
 $('mRaceStart').onclick = () => { send({ t: 'race', track: $('mTrack').value, laps: +$('mLaps').value }); toggleMenu(false); };
@@ -1268,7 +1264,6 @@ function frame() {
     poseModel(car.model, s, dt);
     carFx(s, true, dt);
     if (!GP.active) raceStep(now);
-    sectionStep(now);
     gpFrame(dt, now);
     const sp = Math.hypot(car.vx, car.vz);
     $('spd').textContent = Math.round(sp * 3.6);
@@ -1292,10 +1287,9 @@ function frame() {
 }
 
 /* ================= 시작 ================= */
-initSections({ T, car, G, send, toast, bigText, sfx, fmtTime, esc, gate, worldRoot, GP, gainPop });
 initGP({ scene, camera, hemi, sun, T, car, G, send, spawnCar, toast, bigText, sfx, fmtTime, esc, colorCss, worldRoot, coinGroup, spawnPart, camState, openGarage, leaveRoom: () => $('mLeave').click() });
 if (COARSE) setTouch(true);
-window.__pr = { G, car, spawnCar, physics, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); sectionStep(performance.now()); } } };
+window.__pr = { G, car, spawnCar, physics, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); } } };
 try { G.cfg = SERVER ? await (await fetch(SERVER + '/config.json', { cache: 'no-cache' })).json() : {}; } catch (e) { G.cfg = {}; }
 $('offlineBtn').onclick = () => goOffline();
 setupGoogle();

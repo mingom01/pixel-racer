@@ -153,6 +153,14 @@ export function makeTextures() {
     return pick(['#a82a20', '#b03028', '#9c261c']);
   }));
   T.stripe = tex(canvasOf(16, 16, (x) => (x >> 2) % 2 ? '#ffffff' : pick(['#9a9a9a', '#a0a0a0'])));
+  T.sand = tex(canvasOf(16, 16, () => pick(['#e6cf96', '#dcc48a', '#ecd6a0', '#d8be84'])));
+  // 활주로: 양쪽 흰 선 + 가운데 긴 점선
+  T.runway = tex(canvasOf(48, 32, (x, y) => {
+    if (x === 2 || x === 45) return '#f2f2f2';
+    if ((x === 23 || x === 24) && y < 20) return '#f2f2f2';
+    return pick(['#3a3b40', '#3e3f44', '#36373c']);
+  }));
+  T.crowd = tex(canvasOf(16, 16, (x, y) => y % 4 === 3 ? '#6a6a6a' : pick(['#d83a3a', '#3a6fd8', '#f2c230', '#f2f2f2', '#3aa64a', '#2a2a2e', '#e0782a', '#f0c8a0'])));
   T.grate = tex(canvasOf(16, 16, (x, y) => (x % 4 === 0 || y % 4 === 0) ? '#6a6a6a' : pick(['#8a8a8a', '#909090'])));
   return T;
 }

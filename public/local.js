@@ -19,7 +19,7 @@ export function makeLocalServer(onMsg) {
     send(o) { const m = typeof o === 'string' ? JSON.parse(o) : o; setTimeout(() => onMsg(m), 0); },
   };
   const save = () => store(prof);
-  const profileOf = () => ({ id: 'local', name: prof.name, coins: prof.coins, owned: prof.owned, car: prof.car, color: prof.color, google: false, races: prof.races || 0, wins: prof.wins || 0, sec: prof.sec || {} });
+  const profileOf = () => ({ id: 'local', name: prof.name, coins: prof.coins, owned: prof.owned, car: prof.car, color: prof.color, google: false, races: prof.races || 0, wins: prof.wins || 0 });
   const broadcast = (r, obj, except) => { if (except !== me) me.send(obj); };
   const GP = window.makeGP({ W, broadcast, save, profileOf, log: () => {} });
   let room = null;
@@ -119,25 +119,6 @@ export function makeLocalServer(onMsg) {
       case 'race': if (r && r.kind !== 'gp' && !r.race) startRace(m.track, m.laps); break;
       case 'raceCancel': if (r && r.race) { r.race = null; me.send({ t: 'raceEnd', results: [], cancelled: true }); } break;
       case 'cp': onCheckpoint(m.i | 0, +m.x, +m.z); break;
-      case 'secDone': {
-        // 혼자 하기: 내 기록만 저장 (전체 기록 = 내 기록)
-        const sec = W.sectionById[m.id], time = Math.round(+m.time);
-        if (!sec || !(time > sec.length / 95 * 1000)) return;
-        prof.sec = prof.sec || {};
-        const pb = !prof.sec[sec.id] || time < prof.sec[sec.id];
-        if (pb) prof.sec[sec.id] = time;
-        const coins = sec.reward + (pb ? 10 : 0);
-        prof.coins += coins; save();
-        me.send({ t: 'secRes', id: sec.id, time, best: prof.sec[sec.id], pb, record: false, coins, top: [{ name: prof.name, time: prof.sec[sec.id] }] });
-        me.send({ t: 'prof', p: profileOf() });
-        break;
-      }
-      case 'secInfo': {
-        const top = {};
-        for (const id in (prof.sec || {})) top[id] = [{ name: prof.name, time: prof.sec[id] }];
-        me.send({ t: 'secAll', top, mine: prof.sec || {} });
-        break;
-      }
       default:
         if (r && r.kind === 'gp' && (m.t.startsWith('gp') || m.t === 'gi')) GP.handle(me, r, m);
     }

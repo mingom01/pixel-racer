@@ -13,7 +13,9 @@
     };
   }
 
-  const HALF = 640;           // 월드 반경 (벽)
+  const HALF = 1280;          // 월드 반경 (벽)
+  const INNER = 640;          // 처음 만든 중앙 지역 (도시/서킷/파크) 반경
+  const SEA_X = -1222;        // 이보다 서쪽은 바다
   const CELL = 40;            // 충돌 공간 해시 셀 크기
 
   /* ---------- 도시 ---------- */
@@ -36,6 +38,15 @@
   roads.push({ x1: -320, z1: CITY.z1, x2: -320, z2: PARK.z2, w: 16 }); // 도시 → 파크
   roads.push({ x1: PARK.x2, z1: -300, x2: 36, z2: -300, w: 16 });     // 파크 → 서킷
   roads.push({ x1: -60, z1: -300, x2: -60, z2: 320, w: 16 });         // 중앙 도로 (스폰)
+  // 외곽 고속도로와 새 지역으로 가는 연결 도로
+  roads.push({ x1: -60, z1: 320, x2: -60, z2: 792, w: 16 });          // 북쪽
+  roads.push({ x1: -60, z1: -300, x2: -60, z2: -792, w: 16 });        // 남쪽
+  roads.push({ x1: CITY.x1, z1: 360, x2: -792, z2: 360, w: 16 });     // 도시 → 서쪽
+  roads.push({ x1: -350, z1: PARK.z1, x2: -350, z2: -792, w: 16 });   // 파크 → 남쪽
+  roads.push({ x1: 808, z1: 0, x2: 872, z2: 0, w: 16 });              // 고속도로 → 스피드웨이
+  roads.push({ x1: 0, z1: 808, x2: 0, z2: 893, w: 16 });              // 고속도로 → 산악 도로
+  roads.push({ x1: -808, z1: 0, x2: -872, z2: 0, w: 16 });            // 고속도로 → 해안 도로
+  roads.push({ x1: 0, z1: -808, x2: 0, z2: -990, w: 16 });            // 고속도로 → 공항
 
   /* ---------- 경사로 / 플랫폼 / 부스터 ---------- */
   // wedge: [cx, cz, rot, len, w, h]  rot: 올라가는 방향(yaw). forward = (sin rot, cos rot)
@@ -97,6 +108,15 @@
     [-160, 230], [-160, 400], [-320, 400], [-320, 560], [-560, 560], [-560, 320], [-400, 320], [-400, 160], [-160, 160],
   ];
 
+  // 둥근 사각형 경로 (직선 + 1/4 원), seg = 모서리 하나의 분할 수
+  function roundRect(cx, cz, hx, hz, r, seg) {
+    const pts = [], arc = (ax, az, a0) => { for (let k = 0; k <= seg; k++) { const a = a0 + k / seg * Math.PI / 2; pts.push([ax + Math.cos(a) * r, az + Math.sin(a) * r]); } };
+    arc(cx + hx - r, cz + hz - r, 0);
+    arc(cx - hx + r, cz + hz - r, Math.PI / 2);
+    arc(cx - hx + r, cz - hz + r, Math.PI);
+    arc(cx + hx - r, cz - hz + r, Math.PI * 1.5);
+    return pts;
+  }
   function makeTrack(id, name, raw, w, nCp, ribbon, step) {
     const r = resampleClosed(raw, step);
     const path = r.pts, n = path.length;
@@ -112,9 +132,17 @@
   const tracks = [
     makeTrack('circuit', '그랑프리 서킷', catmullClosed(CIRCUIT_CTRL, 16), 22, 16, true, 5),
     makeTrack('downtown', '다운타운 런', DOWNTOWN_CORNERS, 16, 14, false, 5),
-    makeTrack('outer', '외곽 순환 레이스', [[-60, -200], [-60, 320], [-160, 320], [-160, 160], [-320, 160], [-320, -300], [-60, -300]], 16, 18, false, 5),
+    makeTrack('outer', '시내 순환 레이스', [[-60, -200], [-60, 320], [-160, 320], [-160, 160], [-320, 160], [-320, -300], [-60, -300]], 16, 18, false, 5),
     makeTrack('parkrally', '스턴트 파크 랠리', [[-165, -215], [-165, -170], [-540, -170], [-540, -545], [-165, -545], [-165, -420], [-360, -420], [-360, -300], [-165, -300]], 16, 16, false, 5),
+    // 넓어진 바깥 지역 코스
+    makeTrack('highway', '외곽 고속도로', roundRect(0, 0, 800, 800, 200, 10), 20, 34, true, 5),
+    makeTrack('oval', '스피드웨이 오벌', roundRect(990, 0, 110, 410, 110, 12), 26, 12, true, 5),
+    makeTrack('mountain', '산악 와인딩', catmullClosed([[0, 900], [300, 880], [500, 940], [640, 1060], [560, 1180], [380, 1140], [260, 1220], [60, 1160], [-120, 1230], [-320, 1180], [-420, 1060], [-600, 1120], [-760, 1040], [-700, 900], [-500, 880], [-300, 940], [-150, 880]], 16), 18, 20, true, 5),
+    makeTrack('coast', '해안 드라이브', catmullClosed([[-880, -500], [-880, 0], [-880, 500], [-960, 620], [-1080, 600], [-1140, 450], [-1100, 250], [-1180, 80], [-1150, -150], [-1200, -350], [-1120, -560], [-1000, -620]], 16), 18, 18, true, 5),
+    makeTrack('airport', '공항 활주로', roundRect(0, -1075, 775, 75, 75, 10), 24, 18, true, 5),
   ];
+  const TRACK_STYLE = { circuit: 'circuit', oval: 'circuit', highway: 'road', mountain: 'road', coast: 'road', airport: 'runway' };
+  for (const t of tracks) t.style = TRACK_STYLE[t.id] || null;
 
   /* ---------- 레이싱 방 전용 경기장 (본 맵과 멀리 떨어진 곳, 벽으로 막힌 코스) ---------- */
   const ARENA_DEFS = [
@@ -180,50 +208,6 @@
 
   const trackById = {};
   for (const t of [...tracks, ...arenas]) trackById[t.id] = t;
-
-  /* ---------- 구간 레이스 (자유 주행 맵의 타임어택) ---------- */
-  // pts: 지나갈 지점들 (열린 경로) 또는 track + from/to (트랙의 일부 구간)
-  const SECTION_DEFS = [
-    { id: 'drag', name: '중앙로 드래그', desc: '쭉 뻗은 중앙로에서 최고 속도 대결', pts: [[-60, -280], [-60, 300]] },
-    { id: 'cityzig', name: '도심 지그재그', desc: '도심 교차로를 연달아 꺾는 코스', pts: [[-160, 170], [-160, 240], [-240, 240], [-240, 320], [-320, 320], [-320, 400], [-400, 400], [-400, 480], [-480, 480], [-480, 552]] },
-    { id: 'cityring', name: '도심 외곽 질주', desc: '도시 바깥쪽 큰길을 크게 도는 코스', pts: [[-560, 170], [-560, 560], [-160, 560], [-160, 400]] },
-    { id: 'parkjump', name: '공원 점프 코스', desc: '점프대 세 개와 고가 플랫폼을 넘는 코스', pts: [[-320, -150], [-320, -235], [-540, -235], [-540, -260], [-340, -260], [-380, -420], [-230, -420], [-180, -420]], w: 18 },
-    { id: 'parkring', name: '파크 외곽 랠리', desc: '흙바닥 스턴트 파크 가장자리를 도는 랠리', pts: [[-150, -160], [-550, -160], [-550, -550], [-150, -550]], w: 18 },
-    { id: 'mega', name: '메가 점프 챌린지', desc: '부스터를 밟고 거대 점프대를 날아라', pts: [[-480, -555], [-480, -380], [-480, -300]], w: 18 },
-    { id: 'circN', name: '서킷 북쪽 헤어핀', desc: '그랑프리 서킷의 헤어핀 구간', track: 'circuit', from: 0.1, to: 0.42 },
-    { id: 'circS', name: '서킷 남쪽 시케인', desc: '그랑프리 서킷의 시케인 구간', track: 'circuit', from: 0.55, to: 0.95 },
-    { id: 'downsprint', name: '다운타운 스프린트', desc: '다운타운 런 코스의 앞쪽 절반', track: 'downtown', from: 0, to: 0.5 },
-    { id: 'grandtour', name: '그랜드 투어', desc: '파크에서 도시를 돌아 중앙로까지 2km 대장정', pts: [[-320, -60], [-320, 160], [-560, 160], [-560, 560], [-160, 560], [-160, 320], [-60, 320], [-60, -250]] },
-  ];
-  function resampleOpen(pts, step) {
-    const out = [pts[0]];
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / step));
-      for (let k = 1; k <= n; k++) out.push([a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]);
-    }
-    return out;
-  }
-  const sections = SECTION_DEFS.map(d => {
-    let path, w = d.w || 16;
-    if (d.track) {
-      const t = trackById[d.track], n = t.path.length, i0 = Math.floor(d.from * n), i1 = Math.floor(d.to * n);
-      path = []; for (let i = i0; i <= i1; i++) path.push(t.path[i % n]);
-      w = t.w;
-    } else path = resampleOpen(d.pts, 5);
-    const n = path.length;
-    const tan = path.map((p, i) => {
-      const a = path[Math.max(0, i - 1)], b = path[Math.min(n - 1, i + 1)];
-      const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1;
-      return [dx / l, dz / l];
-    });
-    let length = 0;
-    for (let i = 1; i < n; i++) length += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
-    const nCp = Math.max(2, Math.round(length / 60)), cps = [];
-    for (let k = 1; k <= nCp; k++) cps.push(Math.round(k * (n - 1) / nCp));
-    return { id: d.id, name: d.name, desc: d.desc, path, tan, cps, length, w, reward: Math.round(8 + length / 60) };
-  });
-  const sectionById = {};
-  for (const s of sections) sectionById[s.id] = s;
 
   // 트랙 점 공간 해시 (가장 가까운 점 찾기용)
   for (const t of [...tracks, ...arenas]) {
@@ -322,8 +306,8 @@
     if (inPark(x, z)) return 'dirt';
     for (const p of pads) if (x > p.x1 && x < p.x2 && z > p.z1 && z < p.z2) return 'road';
     for (const s of roads) if (distSeg(x, z, s) <= s.w / 2) return 'road';
-    const c = tracks[0], n = nearestOnTrack(c, x, z, 1);
-    if (n.d <= c.w / 2 + 1.5) return 'road';
+    for (const t of tracks) if (t.ribbon && nearestOnTrack(t, x, z, 1).d <= t.w / 2 + 1.5) return 'road';
+    if (x < SEA_X) return 'water';
     if (inCity(x, z)) return 'walk';
     return 'grass';
   }
@@ -437,12 +421,12 @@
   // 교외: 주유소, 주택, 농장
   function canPlace(x1, z1, x2, z2) {
     const cx = (x1 + x2) / 2, cz = (z1 + z2) / 2, hd = Math.hypot(x2 - x1, z2 - z1) / 2;
-    if (Math.abs(cx) > HALF - 20 - hd || Math.abs(cz) > HALF - 20 - hd) return false;
+    if (Math.abs(cx) > INNER - 20 - hd || Math.abs(cz) > INNER - 20 - hd) return false;
     if (inCity(cx, cz, hd + 6) || inPark(cx, cz, hd + 6)) return false;
     for (const b of buildings) if (x1 < b.x2 + 4 && x2 > b.x1 - 4 && z1 < b.z2 + 4 && z2 > b.z1 - 4) return false;
     for (const p of pads) if (x1 < p.x2 + 2 && x2 > p.x1 - 2 && z1 < p.z2 + 2 && z2 > p.z1 - 2) return false;
     for (const s of roads) if (distSeg(cx, cz, s) - hd < s.w / 2 + 1) return false;
-    for (const t of tracks) if (nearestOnTrack(t, cx, cz, 2).d - hd < t.w / 2 + 5) return false;
+    for (const t of tracks) if (t.ribbon && nearestOnTrack(t, cx, cz, 2).d - hd < t.w / 2 + 5) return false;
     for (const r of ramps) if (Math.hypot(cx - r.cx, cz - r.cz) < hd + r.len) return false;
     return true;
   }
@@ -466,7 +450,7 @@
   for (let z = -125; z <= 135; z += 24) for (const s of [-1, 1]) if (R() < 0.6) house(-320 + s * 18, z, s > 0 ? 'nx' : 'px');
   let farms = 0, fieldHouses = 0;
   for (let k = 0; k < 400 && (farms < 8 || fieldHouses < 22); k++) {
-    const x = -HALF + 40 + R() * (HALF * 2 - 80), z = -HALF + 40 + R() * (HALF * 2 - 80);
+    const x = -INNER + 40 + R() * (INNER * 2 - 80), z = -INNER + 40 + R() * (INNER * 2 - 80);
     const roll = R();
     if (roll < 0.4) { // 농장: 헛간 + 사일로
       if (farms >= 8) continue;
@@ -482,13 +466,13 @@
   function clearForTree(x, z) {
     if (inCity(x, z, 6) || inPark(x, z, 6)) return false;
     for (const s of roads) if (distSeg(x, z, s) < s.w / 2 + 5) return false;
-    for (const t of tracks) { const n = nearestOnTrack(t, x, z, 1); if (n.d < t.w / 2 + 7) return false; }
+    for (const t of tracks) { if (!t.ribbon) continue; const n = nearestOnTrack(t, x, z, 1); if (n.d < t.w / 2 + 7) return false; }
     for (const b of buildings) if (x > b.x1 - 5 && x < b.x2 + 5 && z > b.z1 - 5 && z < b.z2 + 5) return false;
     for (const p of pads) if (x > p.x1 - 4 && x < p.x2 + 4 && z > p.z1 - 4 && z < p.z2 + 4) return false;
     return true;
   }
   for (let k = 0; k < 1400 && trees.length < 640; k++) {
-    const x = -HALF + 12 + R() * (HALF * 2 - 24), z = -HALF + 12 + R() * (HALF * 2 - 24);
+    const x = -INNER + 12 + R() * (INNER * 2 - 24), z = -INNER + 12 + R() * (INNER * 2 - 24);
     if (clearForTree(x, z)) trees.push({ x, z, s: 0.8 + R() * 0.6 });
   }
   for (const p of cityParks) {
@@ -496,6 +480,53 @@
       const x = p.x1 + 5 + R() * (p.x2 - p.x1 - 10), z = p.z1 + 5 + R() * (p.z2 - p.z1 - 10);
       if (Math.hypot(x - p.cx, z - p.cz) < (p.landmark ? 13 : 8)) continue;
       trees.push({ x, z, s: 0.7 + R() * 0.5 });
+    }
+  }
+
+  /* ---------- 넓어진 바깥 지역: 산, 공항, 스피드웨이, 숲 ---------- */
+  {
+    const RR = rng(4096);
+    const T = id => tracks.find(t => t.id === id);
+    const farFromCourses = (cx, cz, hd, gap) => {
+      for (const t of tracks) if (nearestOnTrack(t, cx, cz, 3).d - hd < t.w / 2 + gap) return false;
+      for (const s of roads) if (distSeg(cx, cz, s) - hd < s.w / 2 + gap) return false;
+      return true;
+    };
+    // 북쪽 산맥 (계단식 바위산, 부딪힘)
+    let made = 0;
+    for (let k = 0; k < 600 && made < 46; k++) {
+      const sx = 30 + RR() * 60, sz = 30 + RR() * 60;
+      const cx = -1250 + sx / 2 + RR() * (2500 - sx), cz = 830 + sz / 2 + RR() * (440 - sz);
+      if (cz + sz / 2 > HALF - 4 || Math.abs(cx) + sx / 2 > HALF - 4) continue;
+      const hd = Math.hypot(sx, sz) / 2;
+      if (!farFromCourses(cx, cz, hd, 14)) continue;
+      const h = Math.round(22 + RR() * 40 + (cz - 830) / 440 * 35);
+      buildings.push({ x1: cx - sx / 2, z1: cz - sz / 2, x2: cx + sx / 2, z2: cz + sz / 2, h, type: 'mountain', snow: h > 70 });
+      made++;
+    }
+    // 남쪽 공항: 터미널, 관제탑, 격납고, 비행기, 계류장
+    pads.push({ x1: -260, z1: -965, x2: 470, z2: -850 }, { x1: -620, z1: -1205, x2: -300, z2: -1162 });
+    buildings.push({ x1: 260, z1: -925, x2: 440, z2: -885, h: 16, type: 'tower', color: 0x9ac0d8, tiers: [{ inset: 0, h: 12 }, { inset: 4, h: 4 }], antenna: false });
+    buildings.push({ x1: 555, z1: -905, x2: 565, z2: -895, h: 38, type: 'ctower' });
+    for (const cx of [-560, -460, -360]) buildings.push({ x1: cx - 40, z1: -1258, x2: cx + 40, z2: -1208, h: 16, type: 'hangar' });
+    for (const cx of [110, -120]) buildings.push({ x1: cx - 20, z1: -932, x2: cx + 20, z2: -927, h: 6, type: 'plane' });
+    // 동쪽 스피드웨이 관중석
+    buildings.push({ x1: 1125, z1: -260, x2: 1155, z2: 260, h: 14, type: 'stand' });
+    // 바깥 지역 숲 (바다·공항 계류장 제외)
+    let added = 0;
+    for (let k = 0; k < 5000 && added < 760; k++) {
+      const x = -HALF + 10 + RR() * (HALF * 2 - 20), z = -HALF + 10 + RR() * (HALF * 2 - 20);
+      if (Math.max(Math.abs(x), Math.abs(z)) < INNER + 20 || x < SEA_X + 110) continue;
+      if (z < -820 && x > -830 && x < 830 && z > -1170) continue; // 공항 안쪽은 비워 둠
+      if (clearForTree(x, z)) { trees.push({ x, z, s: 0.8 + RR() * 0.8 }); added++; }
+    }
+    // 외곽 고속도로 가로등
+    const hw = T('highway');
+    for (let i = 0; i < hw.path.length; i += 24) {
+      const p = hw.path[i], tg = hw.tan[i], o = hw.w / 2 + 2.5;
+      // 바깥쪽(원점에서 먼 쪽)에 세우고 팔은 도로 쪽으로
+      const nx = tg[1], nz = -tg[0], sgn = (p[0] * nx + p[1] * nz) > 0 ? 1 : -1;
+      lamps.push({ x: p[0] + nx * sgn * o, z: p[1] + nz * sgn * o, rot: Math.atan2(-nx * sgn, -nz * sgn) });
     }
   }
 
@@ -600,8 +631,7 @@
       if (collidesStatic(x, z, 2)) return;
       coins.push({ id: coins.length, x, y: (y || 0) + groundHeight(x, z) + 1.3, z, big: !!big });
     };
-    const c = tracks[0];
-    for (let i = 8; i < c.path.length; i += 9) {
+    for (const c of tracks.filter(t => t.ribbon)) for (let i = 8; i < c.path.length; i += 9) {
       const p = c.path[i], tg = c.tan[i], off = (C() - 0.5) * c.w * 0.6;
       add(p[0] + tg[1] * off, p[1] - tg[0] * off);
     }
@@ -624,9 +654,15 @@
     add(-230, -186, 4, true);
     // 들판 곳곳 숨은 코인
     for (let k = 0; k < 60; k++) {
-      const x = -HALF + 30 + C() * (HALF * 2 - 60), z = -HALF + 30 + C() * (HALF * 2 - 60);
+      const x = -INNER + 30 + C() * (INNER * 2 - 60), z = -INNER + 30 + C() * (INNER * 2 - 60);
       if (inCity(x, z) || inPark(x, z)) continue;
       add(x, z, 0, C() < 0.25);
+    }
+    // 바깥 지역 들판·산기슭 숨은 코인
+    for (let k = 0; k < 90; k++) {
+      const x = -HALF + 30 + C() * (HALF * 2 - 60), z = -HALF + 30 + C() * (HALF * 2 - 60);
+      if (Math.max(Math.abs(x), Math.abs(z)) < INNER + 20 || x < SEA_X) continue;
+      add(x, z, 0, C() < 0.3);
     }
   }
   function collidesStatic(x, z, r) {
@@ -663,7 +699,7 @@
   const COLORS = [0xd83a3a, 0x3a6fd8, 0xf2c230, 0x3aa64a, 0xf2f2f2, 0x2a2a2e, 0xe0782a, 0x9a4ad8, 0x38c8c8, 0xf27aa8];
 
   const W = {
-    HALF, CITY, PARK, roads, ramps, platforms, boosts, tracks, trackById, buildings, trees, cityParks, lots, coins, lamps, canopies, pads, arenas, arenaAt, sections, sectionById,
+    HALF, INNER, SEA_X, CITY, PARK, roads, ramps, platforms, boosts, tracks, trackById, buildings, trees, cityParks, lots, coins, lamps, canopies, pads, arenas, arenaAt,
     CARS, carById, COLORS,
     groundHeight, surfaceAt, boostAt, collide, nearestOnTrack, gridSlot, spawnPoint, respawnPoint, inPark, inCity, rng,
   };
