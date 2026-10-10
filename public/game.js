@@ -18,7 +18,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
 const COARSE = matchMedia('(pointer: coarse)').matches;
-const settings = Object.assign({ pix: COARSE ? 1 : 2, shadow: 1, vol: 60, cam: 0, steer: 'pad', autoGas: 0 }, (() => { try { return JSON.parse(lsGet('pr_settings') || '{}'); } catch (e) { return {}; } })());
+const settings = Object.assign({ pix: COARSE ? 1 : 2, shadow: COARSE ? 0 : 1, vol: 60, cam: 0, steer: 'pad', autoGas: 0 }, (() => { try { return JSON.parse(lsGet('pr_settings') || '{}'); } catch (e) { return {}; } })());
 const saveSettings = () => lsSet('pr_settings', JSON.stringify(settings));
 
 /* ================= 렌더러 ================= */
@@ -1094,7 +1094,8 @@ function syncSettingsUI() {
 }
 
 /* ---------- 차고 ---------- */
-let gSel = null;
+let gSel = null, gTab = 'all';
+const CAR_TABS = [['all', '전체'], ['mine', '보유'], ['normal', '일반'], ['sport', '스포츠'], ['luxury', '럭셔리'], ['super', '슈퍼카'], ['hyper', '하이퍼카'], ['suv', 'SUV·트럭']];
 const prev = { renderer: null, scene: null, cam: null, model: null, key: '' };
 function openGarage() {
   G.garageOpen = true;
@@ -1119,7 +1120,10 @@ function closeGarage() { G.garageOpen = false; $('garage').classList.add('hidden
 function renderGarage() {
   const me = G.me;
   $('gCoins').textContent = me.coins;
-  $('carList').innerHTML = W.CARS.map(c => {
+  $('carTabs').innerHTML = CAR_TABS.map(([k, n]) => `<button class="btn small ${k === gTab ? 'on' : ''}" data-k="${k}">${n}</button>`).join('');
+  $('carTabs').querySelectorAll('button').forEach(b => b.onclick = () => { sfx.click(); gTab = b.dataset.k; renderGarage(); $('carList').scrollTop = 0; });
+  const list = W.CARS.filter(c => gTab === 'all' || (gTab === 'mine' ? me.owned.includes(c.id) : c.cls === gTab)).sort((a, b) => a.price - b.price);
+  $('carList').innerHTML = list.map(c => {
     const own = me.owned.includes(c.id);
     return `<div class="caritem ${c.id === gSel ? 'sel' : ''}" data-id="${c.id}"><span>${c.name}</span>${own ? `<span class="own">${c.id === me.car ? '사용 중' : '보유'}</span>` : `<span class="pr"><span class="coin-ico"></span> ${c.price}</span>`}</div>`;
   }).join('');
@@ -1129,7 +1133,7 @@ function renderGarage() {
   const c = W.carById[gSel];
   $('gName').textContent = c.name;
   $('gDesc').textContent = c.desc;
-  const top = W.CARS[W.CARS.length - 1];
+  const top = { maxV: Math.max(...W.CARS.map(x => x.maxV)), acc: Math.max(...W.CARS.map(x => x.acc)) };
   const stat = (name, v, max, label) => `<div class="stat">${name} <span class="muted">${label}</span><div class="bar"><i style="width:${Math.round(clamp(v / max, 0.05, 1) * 100)}%"></i></div></div>`;
   $('gStats').innerHTML = stat('최고 속도', c.maxV, top.maxV, Math.round(c.maxV * 3.6) + ' km/h') + stat('가속', c.acc, top.acc, '') +
     stat('핸들링', c.turn, 2.9, '') + stat('접지력', c.grip, 10, '') + stat('무게 (충돌)', c.mass, 4.5, '') + `<div class="stat">비포장 주행: ${c.off ? '강함' : '약함'}</div>`;
