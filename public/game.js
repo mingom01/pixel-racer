@@ -11,7 +11,7 @@ const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const angLerp = (a, b, t) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return a + d * t; };
-const colorCss = i => '#' + (W.COLORS[i] ?? 0xffffff).toString(16).padStart(6, '0');
+const colorCss = i => '#' + W.colorHex(i).toString(16).padStart(6, '0');
 const fmtTime = ms => { if (ms == null) return '-'; const s = ms / 1000, m = Math.floor(s / 60); return m + ':' + (s % 60).toFixed(2).padStart(5, '0'); };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -1097,9 +1097,57 @@ function syncSettingsUI() {
 let gSel = null, gTab = 'all';
 const CAR_TABS = [['all', '전체'], ['mine', '보유'], ['normal', '일반'], ['sport', '스포츠'], ['luxury', '럭셔리'], ['super', '슈퍼카'], ['hyper', '하이퍼카'], ['suv', 'SUV·트럭']];
 const prev = { renderer: null, scene: null, cam: null, model: null, key: '' };
+// 색 고르기: 기본 색 + 색상/채도/밝기 슬라이더로 아무 색이나
+const PALETTE = [0xd83a3a, 0x8c1c24, 0xff5a3c, 0xe0782a, 0xffa020, 0xf2c230, 0xfff06a, 0x9ad83a, 0x3aa64a, 0x1e6a3a, 0x38c8c8, 0x3ab0ff,
+  0x3a6fd8, 0x1c2c78, 0x9a4ad8, 0x5a2a8a, 0xf27aa8, 0xff3ac8, 0xf2f2f2, 0xb8bcc4, 0x707478, 0x2a2a2e, 0x0a0a0a, 0x8a5a32, 0xd8c08a, 0x4a5a3a];
+const fixColor = h => (h < 64 ? 0x0a0a0a : h);
+let gColor = 0, colorTimer = 0, pickerHsv = [0, 0, 0];
+const hexCss = h => '#' + h.toString(16).padStart(6, '0');
+function hsvToHex(h, s, v) {
+  const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+  return (Math.round(f(5) * 255) << 16) | (Math.round(f(3) * 255) << 8) | Math.round(f(1) * 255);
+}
+function hexToHsv(c) {
+  const r = (c >> 16 & 255) / 255, g = (c >> 8 & 255) / 255, b = (c & 255) / 255, mx = Math.max(r, g, b), d = mx - Math.min(r, g, b);
+  let h = 0;
+  if (d) h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, mx ? d / mx : 0, mx];
+}
+function syncPicker(updateSliders) {
+  const [h, s, v] = pickerHsv;
+  if (updateSliders) { $('pH').value = Math.round(h); $('pS').value = Math.round(s * 100); $('pV').value = Math.round(v * 100); }
+  $('pH').style.background = 'linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)';
+  $('pS').style.background = `linear-gradient(90deg,${hexCss(hsvToHex(h, 0, v))},${hexCss(hsvToHex(h, 1, v))})`;
+  $('pV').style.background = `linear-gradient(90deg,#000,${hexCss(hsvToHex(h, s, 1))})`;
+  $('pNow').style.background = hexCss(gColor);
+  if (document.activeElement !== $('pHex')) $('pHex').value = hexCss(gColor).toUpperCase();
+  $('colorList').querySelectorAll('.sw').forEach(d => d.classList.toggle('sel', +d.dataset.c === gColor));
+}
+function pickColor(hex, fromSliders) {
+  gColor = fixColor(hex & 0xffffff);
+  if (!fromSliders) pickerHsv = hexToHsv(gColor);
+  syncPicker(!fromSliders);
+  clearTimeout(colorTimer);
+  colorTimer = setTimeout(() => { colorTimer = 0; if (gColor !== W.colorHex(G.me.color)) send({ t: 'select', color: gColor }); }, 250);
+}
+for (const id of ['pH', 'pS', 'pV']) $(id).addEventListener('input', () => {
+  pickerHsv = [+$('pH').value, +$('pS').value / 100, +$('pV').value / 100];
+  pickColor(hsvToHex(...pickerHsv), true);
+});
+$('pHex').addEventListener('change', () => {
+  const m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec($('pHex').value.trim());
+  if (!m) { $('pHex').value = hexCss(gColor).toUpperCase(); return; }
+  const t = m[1].length === 3 ? m[1].replace(/./g, ch => ch + ch) : m[1];
+  pickColor(parseInt(t, 16));
+});
+$('pHex').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') $('pHex').blur(); });
+$('pRand').onclick = () => { sfx.click(); pickColor(hsvToHex(Math.random() * 360, 0.5 + Math.random() * 0.5, 0.45 + Math.random() * 0.55)); };
+
 function openGarage() {
   G.garageOpen = true;
   gSel = G.me.car;
+  gColor = W.colorHex(G.me.color);
+  pickerHsv = hexToHsv(gColor);
   $('garage').classList.remove('hidden');
   if (!prev.renderer) {
     prev.renderer = new THREE.WebGLRenderer({ canvas: $('preview'), antialias: false });
@@ -1128,8 +1176,10 @@ function renderGarage() {
     return `<div class="caritem ${c.id === gSel ? 'sel' : ''}" data-id="${c.id}"><span>${c.name}</span>${own ? `<span class="own">${c.id === me.car ? '사용 중' : '보유'}</span>` : `<span class="pr"><span class="coin-ico"></span> ${c.price}</span>`}</div>`;
   }).join('');
   $('carList').querySelectorAll('.caritem').forEach(d => d.onclick = () => { sfx.click(); gSel = d.dataset.id; renderGarage(); });
-  $('colorList').innerHTML = W.COLORS.map((c, i) => `<div class="sw ${i === me.color ? 'sel' : ''}" data-i="${i}" style="background:${colorCss(i)}"></div>`).join('');
-  $('colorList').querySelectorAll('.sw').forEach(d => d.onclick = () => { sfx.click(); send({ t: 'select', color: +d.dataset.i }); });
+  if (!colorTimer && W.colorHex(me.color) !== gColor) { gColor = W.colorHex(me.color); pickerHsv = hexToHsv(gColor); }
+  $('colorList').innerHTML = PALETTE.map(c => `<div class="sw" data-c="${c}" style="background:${hexCss(c)}"></div>`).join('');
+  $('colorList').querySelectorAll('.sw').forEach(d => d.onclick = () => { sfx.click(); pickColor(+d.dataset.c); });
+  syncPicker(true);
   const c = W.carById[gSel];
   $('gName').textContent = c.name;
   $('gDesc').textContent = c.desc;
@@ -1150,10 +1200,10 @@ function renderGarage() {
   }
 }
 function renderPreview(dt) {
-  const key = gSel + ':' + G.me.color;
+  const key = gSel + ':' + gColor;
   if (prev.key !== key) {
-    if (prev.model) prev.scene.remove(prev.model.root);
-    prev.model = makeCar(gSel, G.me.color);
+    if (prev.model) { prev.scene.remove(prev.model.root); prev.model.body.traverse(o => o.geometry && o.geometry.dispose()); }
+    prev.model = makeCar(gSel, gColor);
     prev.scene.add(prev.model.root);
     prev.key = key;
     const k = Math.max(1, carShape(gSel).len / 4.6);

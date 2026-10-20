@@ -115,6 +115,15 @@ label.lb { font-size: 12px; color: #444; }
 .colors { display: flex; gap: 5px; flex-wrap: wrap; }
 .sw { width: 28px; height: 28px; border: 2px solid #000; cursor: pointer; box-shadow: inset -2px -2px 0 rgba(0,0,0,.35), inset 2px 2px 0 rgba(255,255,255,.35); }
 .sw.sel { outline: 3px solid #fff; outline-offset: -1px; }
+.colors .sw { width: 24px; height: 24px; }
+.picker { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.prow { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.prow > span:first-child:not(.sw) { width: 30px; flex: none; }
+.prow input[type=range] { flex: 1; -webkit-appearance: none; appearance: none; height: 16px; border: 2px solid #000; margin: 0; background: #888; }
+.prow input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 22px; background: #fff; border: 2px solid #000; cursor: pointer; }
+.prow input[type=range]::-moz-range-thumb { width: 10px; height: 20px; background: #fff; border: 2px solid #000; border-radius: 0; cursor: pointer; }
+#pNow { flex: none; cursor: default; }
+#pHex { width: 84px; font: inherit; font-size: 13px; padding: 4px 6px; border: 2px solid #000; text-transform: uppercase; }
 .desc { font-size: 12px; line-height: 1.6; color: #333; min-height: 40px; }
 
 /* HUD */

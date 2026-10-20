@@ -32,7 +32,23 @@ const THEMES = {
   beach: { sky: 0x7fd4f0, fog: 0xb8e8f4, near: 220, far: 850, hemi: [0xffffff, 0xc8b080, 1.2], sun: [0xfff0d0, 2.0], bar: [0x38c8c8, 0xf2f2f2], deco: 'palm' },
   canyon: { sky: 0xf0a868, fog: 0xe8a070, near: 160, far: 700, hemi: [0xffd8b0, 0x8a4a2a, 1.05], sun: [0xffc890, 1.9], bar: [0xf2c230, 0x3a2a22], deco: 'rock' },
   night: { sky: 0x0a0e24, fog: 0x0e1230, near: 90, far: 460, hemi: [0x7080c0, 0x101020, 0.5], sun: [0x8090ff, 0.45], bar: [0xff3aa8, 0x3ae8ff], deco: 'neon', glow: true },
+  autumn: { sky: 0xa8c8e8, fog: 0xe0d0b8, near: 200, far: 780, hemi: [0xfff0e0, 0x7a5a30, 1.1], sun: [0xffe0b0, 1.8], bar: [0xe0782a, 0xf2f2f2], deco: 'maple' },
+  volcano: { sky: 0x3a1a1a, fog: 0x4a2018, near: 120, far: 560, hemi: [0xffb08a, 0x2a1010, 0.85], sun: [0xff9a60, 1.3], bar: [0xf2c230, 0x2a2a2e], deco: 'lava' },
+  port: { sky: 0x9ab8d0, fog: 0xb0c4d4, near: 200, far: 800, hemi: [0xe8f0ff, 0x606870, 1.1], sun: [0xfff4e0, 1.8], bar: [0xf2c230, 0x2a2a2e], deco: 'container' },
+  rainbow: { sky: 0x140c38, fog: 0x1e1250, near: 130, far: 620, hemi: [0xa090ff, 0x201040, 0.75], sun: [0xc0b0ff, 0.8], bar: [0xff5aa8, 0x5ae8ff], deco: 'star', glow: true },
+  jungle: { sky: 0x8ac8a0, fog: 0x9ad0a8, near: 140, far: 600, hemi: [0xe0ffe0, 0x3a5a2a, 1.1], sun: [0xfff0c0, 1.7], bar: [0x3aa64a, 0xf2c230], deco: 'jungle' },
+  dusk: { sky: 0xf0a080, fog: 0xe8a888, near: 220, far: 850, hemi: [0xffd0c0, 0x5a5040, 1.0], sun: [0xffa070, 1.7], bar: [0xd83a3a, 0xf2f2f2], deco: 'tree' },
 };
+// 테마별 바닥 / 코스 밖 / 노면 텍스처 이름 (T.xxx 또는 TX.xxx), 미니맵 바탕색
+const GROUND = {
+  grass: ['T.grass', 'TX.gravel', 'T.roadTrack', '#4f9530'], desert: ['TX.sand', 'TX.sand2', 'T.roadTrack', '#c8a060'],
+  snow: ['TX.snow', 'TX.snow', 'TX.ice', '#dce6f2'], night: ['TX.dark', 'TX.dark', 'TX.neonRoad', '#10122a'],
+  beach: ['TX.sand', 'TX.sand2', 'T.roadTrack', '#e0c888'], canyon: ['TX.redrock', 'TX.redrock2', 'T.roadTrack', '#a8583a'],
+  autumn: ['TX.leaf', 'TX.gravel', 'T.roadTrack', '#8a7a34'], volcano: ['TX.basalt', 'TX.lava', 'T.roadTrack', '#2a1a18'],
+  port: ['T.concrete', 'TX.gravel', 'T.roadTrack', '#8a8c90'], rainbow: ['TX.space', 'TX.space', 'TX.rainbowRoad', '#1a1040'],
+  jungle: ['TX.jungle', 'TX.mud', 'TX.dirtRoad', '#2e6a2a'], dusk: ['T.grass', 'TX.gravel', 'T.roadTrack', '#5a7a30'],
+};
+const texOf = name => { const [o, k] = name.split('.'); return (o === 'T' ? X.T : TX)[k]; };
 let defTheme = null;
 function applyTheme(th) {
   const { scene, hemi, sun } = X;
@@ -75,6 +91,21 @@ function makeTex() {
       return ['#6a5aff', '#7a6aff', '#5a4aef'][(x * 7 + y * 3) % 3];
     })),
     win: tex(canvasOf(16, 16, (x, y) => (y % 4 === 1 || y % 4 === 2) && x % 4 !== 0 ? pick(['#ff3aa8', '#3ae8ff', '#f2e040', '#1a1c30', '#1a1c30', '#1a1c30']) : '#101224')),
+    leaf: tex(canvasOf(16, 16, () => pick(['#b8762a', '#a86a26', '#d89a3a', '#8a7a3a', '#c05a2a', '#7a8a3a', '#6a7a32', '#8a8a3a']))),
+    basalt: tex(canvasOf(16, 16, (x, y) => (x * 5 + y * 3) % 17 === 0 ? '#5a2a1a' : pick(['#2a2426', '#322a2a', '#262022', '#3a302e']))),
+    lava: tex(canvasOf(16, 16, (x, y) => ((x + y * 2) % 9 < 2) ? '#ffd040' : pick(['#ff6a1a', '#f0501a', '#ff8a2a', '#d8401a']))),
+    space: tex(canvasOf(16, 16, (x, y) => (x * 7 + y * 13) % 41 === 0 ? '#ffffff' : (x * 3 + y * 11) % 53 === 0 ? '#8ae8ff' : pick(['#140c38', '#180e40', '#120a32', '#1c1048']))),
+    rainbowRoad: tex(canvasOf(44, 16, (x, y) => {
+      if (x === 1 || x === 42) return '#ffffff';
+      const band = ['#ff4a4a', '#ff9a2a', '#ffe23a', '#4ae05a', '#3ab8ff', '#5a6aff', '#c25aff'][Math.max(0, Math.min(6, Math.floor((x - 2) / 40 * 7)))];
+      return y % 8 === 0 ? '#ffffff' : band;
+    })),
+    jungle: tex(canvasOf(16, 16, () => pick(['#2e6a2a', '#346e2e', '#285e24', '#3a7a32', '#24561e']))),
+    mud: tex(canvasOf(16, 16, () => pick(['#6a4a2a', '#5e4224', '#74522e', '#563c20']))),
+    dirtRoad: tex(canvasOf(44, 16, (x, y) => {
+      if ((x === 12 || x === 13 || x === 30 || x === 31) && y % 3 !== 0) return '#7a5a34';
+      return pick(['#a07a4a', '#9a7444', '#a8824e', '#94703f']);
+    })),
   };
 }
 
@@ -108,15 +139,19 @@ function buildArena(a) {
   X.scene.add(g);
   const add = (geo, mat, shadow) => { const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; if (shadow) m.castShadow = true; g.add(m); return m; };
   const b = a.bounds, M = 320;
-  const ground = { grass: T.grass, desert: TX.sand, snow: TX.snow, night: TX.dark, beach: TX.sand, canyon: TX.redrock }[a.theme];
-  const runoff = { grass: TX.gravel, desert: TX.sand2, snow: TX.snow, night: TX.dark, beach: TX.sand2, canyon: TX.redrock2 }[a.theme];
-  const road = { grass: T.roadTrack, desert: T.roadTrack, snow: TX.ice, night: TX.neonRoad, beach: T.roadTrack, canyon: T.roadTrack }[a.theme];
-  // 해변: 동쪽은 바다
+  const [ground, runoff, road] = GROUND[a.theme].slice(0, 3).map(texOf);
+  // 해변: 동쪽은 바다 / 항구: 서쪽은 바다 / 화산: 용암 호수
   if (a.theme === 'beach') add(flatQuad(b.x2 + 70, b.z1 - M, b.x2 + M + 400, b.z2 + M, 0.08, 4), lam({ map: T.water, emissive: 0x0a2a4a }));
+  if (a.theme === 'port') add(flatQuad(b.x1 - M - 400, b.z1 - M, b.x1 - 60, b.z2 + M, 0.08, 4), lam({ map: T.water, emissive: 0x0a2a4a }));
+  if (a.theme === 'volcano') for (const [lx, lz, r] of [[0.5, 0.5, 70], [0.15, -0.25, 50], [1.25, 0.2, 90], [-0.3, 0.8, 80]]) {
+    const cx = b.x1 + (b.x2 - b.x1) * lx, cz = b.z1 + (b.z2 - b.z1) * lz;
+    if (W.nearestOnTrack(a, cx, cz, 3).d > r + a.wb + 6) add(flatQuad(cx - r, cz - r, cx + r, cz + r, 0.05, 4), new THREE.MeshBasicMaterial({ map: TX.lava }));
+  }
   add(flatQuad(b.x1 - M, b.z1 - M, b.x2 + M, b.z2 + M, 0, 4), lam({ map: ground }));
-  add(ribbon(a, -a.w / 2, a.w / 2, 0.06, 8), lam({ map: road }));
-  add(ribbon(a, a.w / 2 + 1.6, a.wb + 0.5, 0.04, 4), lam({ map: runoff }));
-  add(ribbon(a, -a.wb - 0.5, -a.w / 2 - 1.6, 0.04, 4), lam({ map: runoff }));
+  add(ribbon(a, -a.w / 2, a.w / 2, 0.06, 8), a.theme === 'rainbow' ? new THREE.MeshBasicMaterial({ map: road }) : lam({ map: road }));
+  const runMat = a.theme === 'volcano' ? new THREE.MeshBasicMaterial({ map: runoff }) : lam({ map: runoff });
+  add(ribbon(a, a.w / 2 + 1.6, a.wb + 0.5, 0.04, 4), runMat);
+  add(ribbon(a, -a.wb - 0.5, -a.w / 2 - 1.6, 0.04, 4), runMat);
   const curbMat = th.glow ? new THREE.MeshBasicMaterial({ map: T.curb, color: 0xff80d0 }) : lam({ map: T.curb });
   add(ribbon(a, a.w / 2, a.w / 2 + 1.6, 0.09, 4), curbMat);
   add(ribbon(a, -a.w / 2 - 1.6, -a.w / 2, 0.09, 4), curbMat);
@@ -171,6 +206,7 @@ function buildArena(a) {
   for (let k = 0; k < 900 && spots.length < 260; k++) {
     const x = b.x1 - 260 + R() * (b.x2 - b.x1 + 520), z = b.z1 - 260 + R() * (b.z2 - b.z1 + 520);
     if (a.theme === 'beach' && x > b.x2 + 60) continue;
+    if (a.theme === 'port' && x < b.x1 - 50) continue;
     if (W.nearestOnTrack(a, x, z, 2).d > a.wb + 10) spots.push([x, z, 0.8 + R() * 0.7, Math.floor(R() * 4)]);
   }
   buildDeco(g, th.deco, spots, T);
@@ -195,18 +231,24 @@ function buildDeco(g, kind, spots, T) {
     palm: [[0.8, 8, 0.8, 0, 4, T.bark, 0xffffff], [7, 0.5, 1.6, 0, 8.2, null, 0x3a9a3a], [1.6, 0.5, 7, 0, 8.2, null, 0x3a9a3a], [1.6, 1.2, 1.6, 0, 8.6, null, 0x2e7a2e]],
     rock: [[6, 5, 6, 0, 2.5, null, 0x9a4a2a], [4.5, 3, 4.5, 0.6, 6.5, null, 0xb5603a], [2.5, 2, 2.5, -0.4, 9, null, 0xa8553a]],
     neon: [[8, 30, 8, 0, 15, 'win', 0xffffff], [8.6, 0.8, 8.6, 0, 30.4, null, 0xff3aa8]],
+    maple: [[1, 4, 1, 0, 2, T.bark, 0xffffff], [5, 4, 5, 0, 5.5, null, 0xd8602a], [3, 2, 3, 0, 8.5, null, 0xe8a030]],
+    lava: [[6, 5, 6, 0, 2.5, null, 0x3a2a28], [4.5, 3, 4.5, 0.6, 6.5, null, 0x2a2020], [2, 0.6, 2, 0.6, 8.3, 'glow', 0xff6a20]],
+    container: [[12, 2.6, 2.6, 0, 1.3, null, 0xc83a32], [12, 2.6, 2.6, 0, 3.9, null, 0x3a6fd8], [12, 2.6, 2.6, 0.3, 6.5, null, 0xe0b030]],
+    star: [[2, 2, 2, 0, 12, 'glow', 0xfff07a], [1.2, 1.2, 1.2, 1.5, 17, 'glow', 0x7ae8ff], [0.8, 0.8, 0.8, -1.5, 8, 'glow', 0xff8ad8]],
+    jungle: [[0.8, 9, 0.8, 0, 4.5, T.bark, 0xffffff], [7, 0.5, 1.6, 0, 9.2, null, 0x2e8a2e], [1.6, 0.5, 7, 0, 9.2, null, 0x2e8a2e], [4, 2.4, 4, 1.8, 1.2, null, 0x2a6a2a]],
   }[kind];
+  const glowKind = kind === 'neon' || kind === 'star';
   for (const [sx, sy, sz, ox, oy, map, color] of parts) {
-    const mat = map === 'win' ? new THREE.MeshBasicMaterial({ map: TX.win }) : (kind === 'neon' && !map ? new THREE.MeshBasicMaterial({ color }) : lam({ map: map || null, color }));
+    const mat = map === 'win' ? new THREE.MeshBasicMaterial({ map: TX.win }) : ((kind === 'neon' && !map) || map === 'glow' ? new THREE.MeshBasicMaterial({ color }) : lam({ map: map || null, color }));
     const inst = new THREE.InstancedMesh(boxUV(sx, sy, sz, 4), mat, spots.length);
     spots.forEach(([x, z, k, r], i) => {
-      const hk = kind === 'neon' ? k * 1.6 : (kind === 'rock' ? k * 1.8 : k);
+      const hk = kind === 'neon' ? k * 1.6 : (kind === 'rock' || kind === 'lava' ? k * 1.8 : k);
       q.setFromAxisAngle(up, r * Math.PI / 2);
       const c = Math.cos(r * Math.PI / 2), sn = Math.sin(r * Math.PI / 2);
       p.set(x + ox * c * k, oy * hk, z - ox * sn * k); s.set(k, hk, k);
       m4.compose(p, q, s); inst.setMatrixAt(i, m4);
     });
-    inst.castShadow = kind !== 'neon';
+    inst.castShadow = !glowKind && map !== 'glow';
     g.add(inst);
   }
 }
@@ -221,7 +263,7 @@ function mapOf(a) {
   const c = document.createElement('canvas'); c.width = c.height = size;
   const g = c.getContext('2d');
   const th = THEMES[a.theme];
-  g.fillStyle = { grass: '#4f9530', desert: '#c8a060', snow: '#dce6f2', night: '#10122a', beach: '#e0c888', canyon: '#a8583a' }[a.theme]; g.fillRect(0, 0, size, size);
+  g.fillStyle = GROUND[a.theme][3]; g.fillRect(0, 0, size, size);
   g.lineJoin = 'round';
   const path = () => { g.beginPath(); a.path.forEach((p, i) => { const [x, y] = to(p[0], p[1]); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); };
   g.strokeStyle = '#' + th.bar[0].toString(16).padStart(6, '0'); g.lineWidth = (a.wb * 2 + 4) * s; path(); g.stroke();

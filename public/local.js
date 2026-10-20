@@ -110,7 +110,7 @@ export function makeLocalServer(onMsg) {
       }
       case 'select':
         if (m.car && prof.owned.includes(m.car)) prof.car = m.car;
-        if (Number.isInteger(m.color) && m.color >= 0 && m.color < W.COLORS.length) prof.color = m.color;
+        if (W.validColor(m.color)) prof.color = m.color;
         save(); me.send({ t: 'prof', p: profileOf() });
         if (r && r.kind === 'gp') GP.push(r);
         break;

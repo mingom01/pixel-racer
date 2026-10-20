@@ -848,6 +848,66 @@ const SPECS = {
     L: 5.7, W: 2.2, H: 0.75, y0: 0.6, cab: [0.1, 2.6, 0.5, 0.9], roofMat: 's', bump: 's', tailBar: true, lightW: 0.9, lightH: 0.06, wr: 0.6, ww: 0.5,
     extra: [[0, 1.55, -1.6, 2.1, 0.4, 2.4, 's'], [0, 1.98, -0.2, 1.8, 0.3, 1.5, 's'], [0, 1.18, 2.0, 2.1, 0.3, 1.6, 's'], [0, 1.6, 2.86, 2.0, 0.06, 0.05, 'l']],
   },
+  // ---- 3차 추가 ----
+  spark: { L: 3.6, W: 1.6, H: 0.64, cab: [-0.2, 2.1, 0.65], lightH: 0.2, grille: [0.7, 0.14, 'k'], wr: 0.36, ww: 0.34 },
+  morning: { L: 3.6, W: 1.6, H: 0.62, cab: [-0.15, 2.2, 0.62], grille: [0.8, 0.16, 'k'], lightW: 0.34, lightH: 0.12, wr: 0.36, ww: 0.34 },
+  fiat500: { L: 3.6, W: 1.65, H: 0.66, cab: [-0.25, 1.9, 0.58], lightW: 0.3, lightH: 0.25, roofMat: 'w', extra: [[0, 0.66, 1.81, 0.5, 0.06, 0.04, 's']], wr: 0.36, ww: 0.34 },
+  casper: { L: 3.6, W: 1.6, H: 0.75, y0: 0.45, cab: [-0.2, 2.3, 0.65, 0.92], roofMat: 'k', lightW: 0.3, lightH: 0.24, grille: [1.2, 0.1, 'k'], wr: 0.42 },
+  prius: { L: 4.6, W: 1.78, H: 0.6, cab: [-0.3, 2.6, 0.55, 0.85], lightW: 0.4, lightH: 0.06, tailBar: true, wr: 0.4 },
+  vwbus: { L: 4.4, W: 1.75, H: 0.9, y0: 0.45, cab: [-0.2, 3.6, 0.9, 0.95], two: true, extra: [[0, 0.95, 2.22, 1.6, 0.5, 0.04, 'w'], [0, 1.15, 2.23, 0.3, 0.3, 0.04, 's']], lightW: 0.24, lightH: 0.24, wr: 0.4 },
+  k5: { L: 4.9, W: 1.86, H: 0.58, cab: [-0.25, 2.5, 0.52, 0.85], grille: [1.3, 0.25, 'k'], tailBar: true, lightH: 0.08, lightW: 0.45 },
+  carnival: { L: 5.15, W: 1.99, H: 0.85, y0: 0.45, cab: [-0.4, 3.6, 0.85, 0.94], grille: [1.4, 0.4, 'k'], lightW: 0.4, lightH: 0.08, tailBar: true, wr: 0.48 },
+  ambulance: {
+    L: 5.6, W: 2.05, H: 1.0, y0: 0.5, cab: [-0.5, 3.6, 1.1, 0.98], grille: [1.0, 0.3, 'k'], wr: 0.48,
+    extra: [[0.45, 2.68, 1.2, 0.5, 0.14, 0.3, 't'], [-0.45, 2.68, 1.2, 0.5, 0.14, 0.3, 'u'], [1.03, 1.15, 0, 0.04, 0.22, 5.0, 'o'], [-1.03, 1.15, 0, 0.04, 0.22, 5.0, 'o']],
+  },
+  miata: { L: 3.9, W: 1.73, H: 0.55, cab: [-0.35, 1.1, 0.28, 0.82], roofMat: 'k', lightW: 0.3, lightH: 0.1, wr: 0.4 },
+  z370: { L: 4.25, W: 1.85, H: 0.55, cab: [-0.4, 1.8, 0.5, 0.8], lightH: 0.1, grille: [1.0, 0.25, 'k'] },
+  wrx: { L: 4.6, W: 1.8, H: 0.62, cab: [-0.2, 2.3, 0.56], wing: [0.32, 'b'], grille: [0.9, 0.22, 'k'], extra: [[0, 1.02, 1.0, 0.6, 0.12, 0.5, 'b'], [0, 1.02, 1.26, 0.5, 0.08, 0.04, 'k']] },
+  lancer: { L: 4.5, W: 1.81, H: 0.62, cab: [-0.2, 2.3, 0.55], wing: [0.3, 'b'], grille: [1.2, 0.3, 'k'] },
+  m3e30: { L: 4.35, W: 1.68, H: 0.62, cab: [-0.15, 2.1, 0.55, 0.88], wing: [0.15, 'b'], grille: [0.4, 0.3, 'k'], lightW: 0.4, lightH: 0.12 },
+  camaro: { L: 4.8, W: 1.9, H: 0.66, cab: [-0.4, 2.0, 0.45, 0.82], grille: [1.5, 0.25, 'k'], hoodStripe: 'k', tailBar: true, lightH: 0.08 },
+  alpine: { L: 4.2, W: 1.8, H: 0.55, cab: [-0.2, 1.8, 0.5, 0.8], lightW: 0.25, lightH: 0.22 },
+  models: { L: 5.0, W: 1.96, H: 0.6, cab: [-0.3, 2.8, 0.55, 0.86], tailBar: true, lightW: 0.4, lightH: 0.08, roofMat: 'g' },
+  lexusls: { L: 5.25, W: 1.9, H: 0.64, cab: [-0.4, 2.7, 0.54], grille: [1.1, 0.5, 'k'], lightH: 0.08, lightW: 0.45, tailBar: true },
+  sclass: { L: 5.2, W: 1.95, H: 0.66, cab: [-0.4, 2.8, 0.56], grille: [0.9, 0.36, 's'], tailBar: true, extra: [[0, 1.0, 2.62, 0.12, 0.12, 0.04, 's']] },
+  escalade: { L: 5.4, W: 2.06, H: 0.95, y0: 0.55, cab: [-0.4, 3.2, 0.78, 0.94], grille: [1.3, 0.6, 's'], lightW: 0.12, lightH: 0.6, lightY: 0.5, wr: 0.55, ww: 0.46 },
+  flyingspur: { L: 5.3, W: 1.98, H: 0.66, cab: [-0.4, 2.8, 0.55], grille: [0.9, 0.42, 's'], lightW: 0.3, lightH: 0.24, two: true },
+  spectre: { L: 5.45, W: 2.08, H: 0.68, y0: 0.4, cab: [-0.6, 2.4, 0.55, 0.84], grille: [0.9, 0.4, 's'], two: true, lightH: 0.06, lightW: 0.5, extra: [[0, 1.2, 2.75, 0.08, 0.2, 0.08, 's']] },
+  purosangue: { L: 4.97, W: 2.03, H: 0.75, y0: 0.48, cab: [-0.4, 2.4, 0.55, 0.84], intake: true, lightH: 0.07, lightW: 0.5, grille: [1.0, 0.25, 'k'], wr: 0.52 },
+  testarossa: {
+    L: 4.48, W: 1.98, H: 0.55, cab: [-0.1, 1.9, 0.44, 0.78], tailBar: true, lightH: 0.06,
+    extra: [[1.0, 0.78, -0.5, 0.04, 0.05, 1.8, 'k'], [-1.0, 0.78, -0.5, 0.04, 0.05, 1.8, 'k'], [1.0, 0.64, -0.5, 0.04, 0.05, 1.8, 'k'], [-1.0, 0.64, -0.5, 0.04, 0.05, 1.8, 'k'], [1.0, 0.5, -0.5, 0.04, 0.05, 1.8, 'k'], [-1.0, 0.5, -0.5, 0.04, 0.05, 1.8, 'k']],
+  },
+  diablo: { L: 4.47, W: 2.04, H: 0.52, y0: 0.28, cab: [0.05, 1.8, 0.42, 0.74], wing: [0.3, 'b'], lightH: 0.08, intake: true },
+  murcielago: { L: 4.6, W: 2.06, H: 0.5, y0: 0.28, cab: [0.05, 1.8, 0.42, 0.72], intake: true, wing: [0.12, 'k'], lightH: 0.06, lightW: 0.45 },
+  fordgt: { L: 4.76, W: 2.0, H: 0.48, cab: [0.1, 1.7, 0.42, 0.7], wing: [0.2, 'b'], hoodStripe: 'w', intake: true, lightH: 0.08 },
+  f8: { L: 4.6, W: 1.98, H: 0.5, cab: [-0.1, 1.7, 0.44, 0.76], intake: true, lightH: 0.08, extra: [[0, 0.5, 2.31, 1.2, 0.12, 0.04, 'k']] },
+  mc720s: { L: 4.54, W: 1.93, H: 0.48, cab: [0, 1.9, 0.46, 0.76], intake: true, lightW: 0.35, lightH: 0.14, tailBar: true },
+  gt3rs: { L: 4.57, W: 1.9, H: 0.55, cab: [-0.4, 1.9, 0.52, 0.8], wing: [0.55, 'k'], intake: true, tailBar: true, lightW: 0.3, lightH: 0.2 },
+  enzo: { L: 4.7, W: 2.04, H: 0.46, cab: [0.1, 1.6, 0.42, 0.68], intake: true, wing: [0.12, 'b'], lightH: 0.07, extra: [[0, 0.5, 2.3, 0.5, 0.15, 0.2, 'k']] },
+  veyron: { L: 4.46, W: 2.0, H: 0.55, cab: [-0.1, 1.8, 0.45, 0.76], two: true, grille: [0.45, 0.4, 's'], extra: [[0.3, 1.42, -0.9, 0.3, 0.14, 0.5, 's'], [-0.3, 1.42, -0.9, 0.3, 0.14, 0.5, 's']] },
+  mclarenf1: { L: 4.29, W: 1.82, H: 0.5, cab: [0, 1.7, 0.45, 0.72], lightH: 0.08, tailBar: true, extra: [[0, 1.37, -0.3, 0.3, 0.16, 0.6, 'k']] },
+  sian: { L: 4.98, W: 2.1, H: 0.46, y0: 0.26, cab: [0.05, 1.8, 0.4, 0.7], intake: true, lightW: 0.55, lightH: 0.05, wing: [0.12, 'k'] },
+  agera: { L: 4.3, W: 2.05, H: 0.48, cab: [0, 1.7, 0.42, 0.72], wing: [0.35, 'k'], intake: true, lightH: 0.07 },
+  gmat50: { L: 4.35, W: 1.85, H: 0.44, cab: [0.1, 1.6, 0.46, 0.66], intake: true, extra: [[0, 0.62, -2.18, 0.6, 0.4, 0.05, 'k'], [0, 0.62, -2.2, 0.08, 0.36, 0.04, 's']] },
+  tuatara: { L: 4.9, W: 2.1, H: 0.44, cab: [0.15, 1.7, 0.4, 0.66], intake: true, lightH: 0.05, extra: [[0.7, 0.9, -1.9, 0.06, 0.3, 0.9, 'b'], [-0.7, 0.9, -1.9, 0.06, 0.3, 0.9, 'b']] },
+  nevera: { L: 4.75, W: 1.99, H: 0.46, cab: [0, 1.8, 0.44, 0.72], lightW: 0.5, lightH: 0.05, tailBar: true, intake: true },
+  bolide: { L: 4.76, W: 2.0, H: 0.4, y0: 0.2, cab: [0.1, 1.4, 0.4, 0.6], wing: [0.5, 'k'], intake: true, tailBar: true, extra: [[0, 0.75, -0.9, 0.2, 0.3, 1.6, 'b']] },
+  santafe: { L: 4.83, W: 1.9, H: 0.85, y0: 0.5, cab: [-0.4, 3.0, 0.7, 0.94], lightW: 0.7, lightH: 0.06, grille: [1.4, 0.3, 'k'], wr: 0.5, tailBar: true },
+  sorento: { L: 4.8, W: 1.9, H: 0.82, y0: 0.5, cab: [-0.35, 2.9, 0.65, 0.9], grille: [1.2, 0.35, 'k'], lightW: 0.12, lightH: 0.4, lightY: 0.55, wr: 0.5 },
+  defender: { L: 4.75, W: 2.0, H: 0.9, y0: 0.55, cab: [-0.3, 3.0, 0.8, 0.94], roofMat: 'w', lightW: 0.28, lightH: 0.28, grille: [1.2, 0.3, 'k'], wr: 0.56, ww: 0.46, extra: [[0, 1.2, -2.45, 0.8, 0.8, 0.2, 'k']] },
+  raptor: {
+    L: 5.9, W: 2.2, H: 0.95, y0: 0.65, cab: [0.3, 2.6, 0.75, 0.94], grille: [1.8, 0.45, 'k'], wr: 0.62, ww: 0.52, wf: 0.33, wb: 0.3,
+    extra: [[1.05, 1.72, -1.6, 0.1, 0.25, 2.5, 'b'], [-1.05, 1.72, -1.6, 0.1, 0.25, 2.5, 'b'], [0, 1.72, -2.9, 2.2, 0.25, 0.1, 'b'], [0, 1.61, -1.6, 2.0, 0.02, 2.5, 'k']],
+  },
+  firetruck: {
+    L: 8.0, W: 2.4, H: 1.4, y0: 0.6, cab: [2.4, 2.4, 0.9, 0.98], grille: [1.6, 0.6, 's'], wr: 0.6, ww: 0.5, wf: 0.32, wb: 0.3, bump: 's',
+    extra: [[0, 2.25, -1.2, 0.9, 0.12, 5.0, 's'], [0.4, 2.12, -1.2, 0.08, 0.16, 5.0, 's'], [-0.4, 2.12, -1.2, 0.08, 0.16, 5.0, 's'], [0.5, 2.98, 2.4, 0.5, 0.14, 0.3, 't'], [-0.5, 2.98, 2.4, 0.5, 0.14, 0.3, 't'],
+      [1.21, 1.2, -1.0, 0.04, 0.16, 5.6, 'w'], [-1.21, 1.2, -1.0, 0.04, 0.16, 5.6, 'w']],
+  },
+  hummer: { L: 5.5, W: 2.2, H: 1.0, y0: 0.65, cab: [-0.2, 3.0, 0.75, 0.94], grille: [1.8, 0.4, 'k'], wr: 0.65, ww: 0.55, lightW: 0.2, lightH: 0.1, extra: [[0, 1.42, 2.76, 1.8, 0.08, 0.05, 'l']] },
+  monster: { L: 4.8, W: 2.4, H: 0.9, y0: 1.4, cab: [-0.3, 2.4, 0.8, 0.9], wr: 1.05, ww: 0.8, wf: 0.34, wb: 0.34, grille: [1.4, 0.4, 'k'], extra: [[0, 1.2, 0, 1.2, 0.3, 3.8, 'k'], [0, 1.0, 1.4, 2.6, 0.12, 0.12, 's'], [0, 1.0, -1.4, 2.6, 0.12, 0.12, 's']] },
 };
 for (const id in SPECS) MODELS[id] = genCar(SPECS[id]);
 
@@ -870,6 +930,7 @@ function mat(key, color) {
     case 'o': m = new THREE.MeshBasicMaterial({ color: 0xf09020 }); break;
     case 'u': m = new THREE.MeshBasicMaterial({ color: 0x2a6aff }); break;
   }
+  if (matCache.size > 400) for (const old of matCache.keys()) if (old.startsWith('b:') || old.startsWith('d:')) { matCache.delete(old); if (matCache.size < 300) break; }
   matCache.set(k, m);
   return m;
 }
@@ -905,7 +966,7 @@ export function carShape(id) {
 // 반환: { root, body, wheels:[{m, front}], tail } root.position=바닥 중심, body 는 기울기용
 export function makeCar(id, colorIdx) {
   const def = MODELS[id] || MODELS.hatch;
-  const color = W.COLORS[colorIdx] ?? W.COLORS[0];
+  const color = W.colorHex(colorIdx);
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);

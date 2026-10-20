@@ -101,6 +101,12 @@
     <div class="col">
       <canvas id="preview" width="320" height="240"></canvas>
       <div class="colors" id="colorList"></div>
+      <div class="picker">
+        <div class="prow"><span>색상</span><input type="range" id="pH" min="0" max="359"></div>
+        <div class="prow"><span>채도</span><input type="range" id="pS" min="0" max="100"></div>
+        <div class="prow"><span>밝기</span><input type="range" id="pV" min="0" max="100"></div>
+        <div class="prow"><span class="sw" id="pNow"></span><input id="pHex" maxlength="7" spellcheck="false"><button class="btn small" id="pRand">랜덤</button></div>
+      </div>
     </div>
     <div class="col">
       <h3 id="gName" style="font-size:18px"></h3>

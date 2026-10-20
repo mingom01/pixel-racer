@@ -397,7 +397,7 @@ function handle(c, msg) {
     }
     case 'select': {
       if (msg.car && u.owned.includes(msg.car)) u.car = msg.car;
-      if (Number.isInteger(msg.color) && msg.color >= 0 && msg.color < W.COLORS.length) u.color = msg.color;
+      if (W.validColor(msg.color)) u.color = msg.color;
       save();
       c.send({ t: 'prof', p: profileOf(c.uid) });
       if (r) broadcast(r, { t: 'pu', p: playerInfo(c) }, c);

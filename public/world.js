@@ -176,6 +176,36 @@
       ctrl: [[0, -350], [0, 50], [30, 180], [120, 240], [220, 200], [250, 100], [330, 60], [420, 120], [470, 240], [580, 250], [620, 120], [560, 0], [600, -120], [540, -260], [420, -280], [350, -200], [260, -260], [200, -380], [110, -460], [30, -460], [2, -410]],
       jumps: [[0.07, 3.5], [0.62, 3]], boosts: [0.03, 0.4], items: [0.22, 0.5, 0.8],
     },
+    {
+      id: 'autumn', name: '단풍 고개', theme: 'autumn', w: 16, desc: '단풍이 물든 산길. 헤어핀이 연달아 나오는 테크니컬 코스',
+      ctrl: [[0, -300], [0, 0], [0, 200], [40, 300], [140, 320], [200, 250], [160, 150], [220, 60], [320, 80], [360, 180], [460, 220], [540, 150], [520, 30], [420, -20], [460, -120], [560, -160], [580, -280], [480, -360], [360, -320], [300, -220], [200, -260], [160, -380], [80, -420], [20, -380]],
+      jumps: [], boosts: [0.05, 0.5], items: [0.22, 0.48, 0.78],
+    },
+    {
+      id: 'volcano', name: '화산 용암 서킷', theme: 'volcano', w: 18, desc: '용암이 흐르는 화산섬. 길 밖은 뜨거운 용암 지대',
+      ctrl: [[0, -400], [0, 0], [0, 200], [60, 300], [180, 300], [240, 200], [320, 140], [440, 180], [520, 300], [640, 280], [680, 140], [600, 20], [620, -120], [700, -240], [640, -380], [500, -400], [420, -300], [320, -340], [240, -460], [120, -520], [30, -480]],
+      jumps: [[0.1, 3.5], [0.56, 3]], boosts: [0.04, 0.42, 0.74], items: [0.2, 0.5, 0.82],
+    },
+    {
+      id: 'port', name: '항구 컨테이너 시티', theme: 'port', w: 18, desc: '컨테이너가 쌓인 부두 사이 직각 코너 시가지 서킷',
+      ctrl: [[0, -300], [0, 150], [12, 220], [60, 260], [200, 260], [250, 240], [270, 190], [270, 60], [290, 10], [340, -10], [480, -10], [530, -40], [545, -100], [545, -260], [520, -310], [470, -330], [340, -330], [290, -300], [260, -240], [200, -210], [120, -250], [100, -350], [50, -400], [8, -380]],
+      jumps: [], boosts: [0.06, 0.55], items: [0.25, 0.5, 0.8],
+    },
+    {
+      id: 'rainbow', name: '무지개 로드', theme: 'rainbow', w: 20, desc: '밤하늘에 떠 있는 무지개 길. 큰 점프가 세 번!',
+      ctrl: [[0, -450], [0, 0], [0, 250], [80, 380], [220, 400], [320, 300], [300, 160], [380, 60], [520, 80], [600, 200], [720, 180], [760, 40], [680, -80], [720, -220], [640, -360], [500, -380], [420, -260], [300, -300], [220, -440], [120, -560], [40, -560], [5, -510]],
+      jumps: [[0.08, 4], [0.47, 3.5], [0.74, 3]], boosts: [0.03, 0.3, 0.62], items: [0.18, 0.4, 0.56, 0.86],
+    },
+    {
+      id: 'jungle', name: '정글 어드벤처', theme: 'jungle', w: 16, desc: '울창한 정글 속 흙길. 좁고 구불구불하다',
+      ctrl: [[0, -350], [0, 50], [-20, 160], [-100, 230], [-120, 330], [-40, 420], [80, 420], [160, 340], [140, 240], [200, 160], [300, 180], [360, 280], [460, 300], [520, 200], [480, 80], [540, -20], [520, -160], [420, -200], [380, -300], [280, -360], [200, -300], [120, -400], [50, -440], [8, -410]],
+      jumps: [[0.06, 3]], boosts: [0.04, 0.6], items: [0.2, 0.45, 0.75],
+    },
+    {
+      id: 'dusk', name: '선셋 스피드웨이', theme: 'dusk', w: 24, desc: '노을 지는 초고속 서킷. 긴 직선에서 최고 속도 대결',
+      ctrl: [[0, -500], [0, 0], [0, 400], [40, 520], [160, 560], [300, 520], [340, 400], [340, 100], [380, 0], [480, -60], [560, -200], [540, -420], [440, -560], [260, -640], [100, -640], [25, -620], [2, -560]],
+      jumps: [], boosts: [0.05, 0.36, 0.7], items: [0.2, 0.52, 0.85],
+    },
   ];
   const arenas = ARENA_DEFS.map((d, k) => {
     const ox = 5000 + k * 2000, oz = 0;
@@ -741,7 +771,54 @@
     { id: 'huayra', name: '파가니 와이라', price: 32000, cls: 'hyper', maxV: 74, acc: 30, turn: 2.6, grip: 9.2, off: false, mass: 1.3, desc: '예술 작품 같은 이탈리아 하이퍼카.' },
     { id: 'valkyrie', name: '애스턴 마틴 발키리', price: 35000, cls: 'hyper', maxV: 76, acc: 32, turn: 2.8, grip: 10, off: false, mass: 1.1, desc: '도로를 달리는 F1 머신.' },
     { id: 'divo', name: '부가티 디보', price: 38000, cls: 'hyper', maxV: 76, acc: 30, turn: 2.7, grip: 9.6, off: false, mass: 1.9, desc: '코너에 강해진 부가티.' },
-    { id: 'jesko', name: '코닉세그 제스코', price: 40000, cls: 'hyper', maxV: 80, acc: 32, turn: 2.6, grip: 9.2, off: false, mass: 1.4, desc: '최고 속도 288km/h, 이 게임에서 가장 빠른 차.' },
+    { id: 'jesko', name: '코닉세그 제스코', price: 40000, cls: 'hyper', maxV: 80, acc: 32, turn: 2.6, grip: 9.2, off: false, mass: 1.4, desc: '최고 속도 288km/h 스웨덴 하이퍼카.' },
+    // ---- 3차 추가 ----
+    { id: 'spark', name: '쉐보레 스파크', price: 250, cls: 'normal', maxV: 33, acc: 12, turn: 2.5, grip: 7, off: false, mass: 0.8, desc: '골목길의 작은 경차.' },
+    { id: 'morning', name: '기아 모닝', price: 300, cls: 'normal', maxV: 34, acc: 12.5, turn: 2.5, grip: 7, off: false, mass: 0.85, desc: '귀여운 국민 경차.' },
+    { id: 'fiat500', name: '피아트 500', price: 450, cls: 'normal', maxV: 37, acc: 13, turn: 2.6, grip: 7.2, off: false, mass: 0.85, desc: '동그란 눈의 이탈리아 꼬마.' },
+    { id: 'casper', name: '현대 캐스퍼', price: 650, cls: 'normal', maxV: 38, acc: 14, turn: 2.4, grip: 7, off: false, mass: 1, desc: '네모난 경형 SUV.' },
+    { id: 'prius', name: '토요타 프리우스', price: 900, cls: 'normal', maxV: 42, acc: 14, turn: 2.3, grip: 7.4, off: false, mass: 1.2, desc: '연비왕 하이브리드.' },
+    { id: 'vwbus', name: '폭스바겐 T1 버스', price: 1100, cls: 'normal', maxV: 36, acc: 11, turn: 2, grip: 6.8, off: false, mass: 1.6, desc: '히피들의 클래식 캠핑 버스.' },
+    { id: 'k5', name: '기아 K5', price: 1300, cls: 'normal', maxV: 48, acc: 17, turn: 2.4, grip: 7.6, off: false, mass: 1.3, desc: '날렵한 중형 세단.' },
+    { id: 'carnival', name: '기아 카니발', price: 1700, cls: 'normal', maxV: 44, acc: 15, turn: 2, grip: 7, off: false, mass: 2, desc: '온 가족이 타는 미니밴.' },
+    { id: 'ambulance', name: '구급차', price: 3000, cls: 'normal', maxV: 52, acc: 18, turn: 2.1, grip: 7.2, off: false, mass: 2.3, desc: '삐뽀삐뽀! 길을 비켜라.' },
+    { id: 'miata', name: '마쯔다 MX-5', price: 1900, cls: 'sport', maxV: 50, acc: 19, turn: 2.9, grip: 7, off: false, mass: 0.95, desc: '가볍고 날렵한 오픈카.' },
+    { id: 'z370', name: '닛산 370Z', price: 3100, cls: 'sport', maxV: 56, acc: 21, turn: 2.5, grip: 7.4, off: false, mass: 1.3, desc: '롱노즈 숏데크 FR 쿠페.' },
+    { id: 'wrx', name: '스바루 WRX STI', price: 3400, cls: 'sport', maxV: 55, acc: 23, turn: 2.6, grip: 7.8, off: true, mass: 1.3, desc: '랠리 출신 4륜구동. 흙길에도 강하다.' },
+    { id: 'lancer', name: '미쓰비시 랜서 에볼루션', price: 3600, cls: 'sport', maxV: 56, acc: 23, turn: 2.6, grip: 8, off: true, mass: 1.3, desc: '전설의 랠리 세단 에보.' },
+    { id: 'm3e30', name: 'BMW M3 E30', price: 3900, cls: 'sport', maxV: 55, acc: 21, turn: 2.7, grip: 6, off: false, mass: 1.2, desc: '80년대 박스형 투어링카. 드리프트 머신.' },
+    { id: 'camaro', name: '쉐보레 카마로', price: 4000, cls: 'sport', maxV: 60, acc: 22, turn: 2.2, grip: 6.4, off: false, mass: 1.6, desc: '줄무늬가 멋진 머슬카.' },
+    { id: 'alpine', name: '알핀 A110', price: 4300, cls: 'sport', maxV: 58, acc: 22, turn: 2.8, grip: 8.4, off: false, mass: 1, desc: '가벼운 프랑스 미드십. 코너 귀신.' },
+    { id: 'models', name: '테슬라 모델 S 플래드', price: 7000, cls: 'sport', maxV: 64, acc: 34, turn: 2.3, grip: 8.2, off: false, mass: 2, desc: '1020마력 전기 세단. 출발 가속 최강급.' },
+    { id: 'lexusls', name: '렉서스 LS', price: 6500, cls: 'luxury', maxV: 56, acc: 18, turn: 2.1, grip: 7.6, off: false, mass: 2, desc: '스핀들 그릴의 조용한 플래그십.' },
+    { id: 'sclass', name: '벤츠 S클래스', price: 7000, cls: 'luxury', maxV: 57, acc: 19, turn: 2.1, grip: 7.8, off: false, mass: 2.1, desc: '사장님 차의 대명사.' },
+    { id: 'escalade', name: '캐딜락 에스컬레이드', price: 8500, cls: 'luxury', maxV: 52, acc: 17, turn: 1.8, grip: 7, off: true, mass: 2.8, desc: '거대한 미국식 럭셔리 SUV.' },
+    { id: 'flyingspur', name: '벤틀리 플라잉스퍼', price: 12500, cls: 'luxury', maxV: 63, acc: 22, turn: 2.1, grip: 8, off: false, mass: 2.3, desc: '빠르고 호화로운 4도어 벤틀리.' },
+    { id: 'spectre', name: '롤스로이스 스펙터', price: 16000, cls: 'luxury', maxV: 62, acc: 26, turn: 2, grip: 7.8, off: false, mass: 2.6, desc: '롤스로이스 최초의 전기 쿠페.' },
+    { id: 'purosangue', name: '페라리 푸로산게', price: 20000, cls: 'luxury', maxV: 66, acc: 27, turn: 2.3, grip: 8.4, off: true, mass: 2.1, desc: 'V12를 품은 페라리 4도어.' },
+    { id: 'testarossa', name: '페라리 테스타로사', price: 14000, cls: 'super', maxV: 64, acc: 23, turn: 2.4, grip: 7.2, off: false, mass: 1.4, desc: '옆구리 줄무늬의 80년대 아이콘.' },
+    { id: 'diablo', name: '람보르기니 디아블로', price: 16500, cls: 'super', maxV: 67, acc: 25, turn: 2.4, grip: 7.4, off: false, mass: 1.5, desc: '90년대 악마 같은 쐐기형 슈퍼카.' },
+    { id: 'murcielago', name: '람보르기니 무르시엘라고', price: 17000, cls: 'super', maxV: 68, acc: 26, turn: 2.4, grip: 8.2, off: false, mass: 1.6, desc: '박쥐라는 이름의 V12 람보.' },
+    { id: 'fordgt', name: '포드 GT', price: 17000, cls: 'super', maxV: 69, acc: 27, turn: 2.5, grip: 8.8, off: false, mass: 1.4, desc: '르망 우승을 위해 부활한 GT.' },
+    { id: 'f8', name: '페라리 F8 트리뷰토', price: 19000, cls: 'super', maxV: 69, acc: 28, turn: 2.6, grip: 9, off: false, mass: 1.4, desc: 'V8 미드십 페라리.' },
+    { id: 'mc720s', name: '맥라렌 720S', price: 19500, cls: 'super', maxV: 70, acc: 29, turn: 2.6, grip: 9, off: false, mass: 1.3, desc: '눈구멍 헤드램프의 맥라렌.' },
+    { id: 'gt3rs', name: '포르쉐 911 GT3 RS', price: 21000, cls: 'super', maxV: 67, acc: 27, turn: 2.8, grip: 9.8, off: false, mass: 1.3, desc: '거대한 날개, 서킷용 911.' },
+    { id: 'enzo', name: '페라리 엔초', price: 23000, cls: 'super', maxV: 71, acc: 29, turn: 2.6, grip: 9, off: false, mass: 1.3, desc: '창업자 이름을 딴 F1 기술의 페라리.' },
+    { id: 'veyron', name: '부가티 베이론', price: 21000, cls: 'hyper', maxV: 74, acc: 28, turn: 2.3, grip: 8.8, off: false, mass: 1.9, desc: '하이퍼카 시대를 연 부가티.' },
+    { id: 'mclarenf1', name: '맥라렌 F1', price: 27000, cls: 'hyper', maxV: 73, acc: 28, turn: 2.6, grip: 8.6, off: false, mass: 1.1, desc: '운전석이 가운데 있는 90년대 전설.' },
+    { id: 'sian', name: '람보르기니 시안', price: 30000, cls: 'hyper', maxV: 74, acc: 31, turn: 2.6, grip: 9.2, off: false, mass: 1.6, desc: '번개라는 뜻의 한정판 람보르기니.' },
+    { id: 'agera', name: '코닉세그 아제라 RS', price: 34000, cls: 'hyper', maxV: 77, acc: 31, turn: 2.6, grip: 9.2, off: false, mass: 1.3, desc: '한때 세계에서 가장 빠른 차.' },
+    { id: 'gmat50', name: 'GMA T.50', price: 36000, cls: 'hyper', maxV: 74, acc: 31, turn: 2.9, grip: 10, off: false, mass: 1, desc: '뒤에 팬이 달린 초경량 하이퍼카.' },
+    { id: 'tuatara', name: 'SSC 투아타라', price: 37000, cls: 'hyper', maxV: 79, acc: 31, turn: 2.5, grip: 9, off: false, mass: 1.3, desc: '미국의 속도 괴물.' },
+    { id: 'nevera', name: '리막 네베라', price: 39000, cls: 'hyper', maxV: 77, acc: 36, turn: 2.6, grip: 9.4, off: false, mass: 2, desc: '1900마력 전기 하이퍼카. 가속 1등.' },
+    { id: 'bolide', name: '부가티 볼리드', price: 45000, cls: 'hyper', maxV: 82, acc: 34, turn: 2.8, grip: 10, off: false, mass: 1.2, desc: '서킷 전용 부가티. 이 게임에서 가장 빠른 차.' },
+    { id: 'santafe', name: '현대 싼타페', price: 2600, cls: 'suv', maxV: 48, acc: 16, turn: 2.1, grip: 7, off: true, mass: 2, desc: 'H 모양 램프의 네모 SUV.' },
+    { id: 'sorento', name: '기아 쏘렌토', price: 2700, cls: 'suv', maxV: 48, acc: 16, turn: 2.1, grip: 7, off: true, mass: 2, desc: '든든한 패밀리 SUV.' },
+    { id: 'defender', name: '랜드로버 디펜더', price: 4600, cls: 'suv', maxV: 50, acc: 18, turn: 2.1, grip: 7, off: true, mass: 2.3, desc: '영국의 정통 오프로더.' },
+    { id: 'raptor', name: '포드 F-150 랩터', price: 5200, cls: 'suv', maxV: 54, acc: 21, turn: 2, grip: 6.8, off: true, mass: 2.6, desc: '사막을 날아다니는 고성능 픽업.' },
+    { id: 'firetruck', name: '소방차', price: 6000, cls: 'suv', maxV: 40, acc: 11, turn: 1.4, grip: 7, off: true, mass: 4.2, desc: '사다리를 실은 거대한 소방차. 범퍼카 강자.' },
+    { id: 'hummer', name: 'GMC 허머 EV', price: 7500, cls: 'suv', maxV: 56, acc: 27, turn: 1.9, grip: 7.2, off: true, mass: 3.2, desc: '1000마력 전기 괴물 트럭.' },
+    { id: 'monster', name: '몬스터 트럭', price: 9000, cls: 'suv', maxV: 50, acc: 22, turn: 2, grip: 6.5, off: true, mass: 3.4, desc: '거대한 바퀴로 모든 걸 밟고 지나간다.' },
   ];
   // 차고 분류: normal 일반 · sport 스포츠 · luxury 럭셔리 · super 슈퍼카 · hyper 하이퍼카 · suv SUV/트럭
   const OLD_CLS = { hatch: 'normal', damas: 'normal', porter: 'suv', beetle: 'normal', avante: 'normal', truck: 'suv', mini: 'normal', coupe: 'sport', buggy: 'suv', bus: 'normal', tesla: 'normal', muscle: 'sport', gwagon: 'suv', porsche: 'sport', gtr: 'sport', super: 'super', f40: 'super', formula: 'hyper', chiron: 'hyper' };
@@ -749,10 +826,13 @@
   const carById = {};
   for (const c of CARS) carById[c.id] = c;
   const COLORS = [0xd83a3a, 0x3a6fd8, 0xf2c230, 0x3aa64a, 0xf2f2f2, 0x2a2a2e, 0xe0782a, 0x9a4ad8, 0x38c8c8, 0xf27aa8];
+  // 차 색: 64 미만은 예전 색 번호, 그 이상은 0xRRGGBB 직접 지정 (아주 어두운 색은 0x0a0a0a 로 보정해서 보냄)
+  function validColor(c) { return Number.isInteger(c) && c >= 0 && c <= 0xffffff; }
+  function colorHex(c) { return validColor(c) ? (c < 64 ? COLORS[c] ?? COLORS[0] : c) : COLORS[0]; }
 
   const W = {
     HALF, INNER, SEA_X, CITY, PARK, roads, ramps, platforms, boosts, tracks, trackById, buildings, trees, cityParks, lots, coins, lamps, canopies, pads, arenas, arenaAt,
-    CARS, carById, COLORS,
+    CARS, carById, COLORS, colorHex, validColor,
     groundHeight, surfaceAt, boostAt, collide, nearestOnTrack, gridSlot, spawnPoint, respawnPoint, inPark, inCity, rng,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = W;
