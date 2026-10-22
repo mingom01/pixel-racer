@@ -1,7 +1,7 @@
 // 레이싱 방 (그랑프리) 클라이언트: 경기장, 대기실, 예선/결승, 아이템전/스피드전, 결과
 import * as THREE from './lib/three.module.min.js';
-import { canvasOf, tex, signTexture } from './tex.js?v=mvjm6cjq';
-import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mvjm6cjq';
+import { canvasOf, tex, signTexture } from './tex.js?v=mvjmijjv';
+import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mvjmijjv';
 
 const W = WORLD;
 const $ = id => document.getElementById(id);
@@ -16,6 +16,7 @@ export const GP = {
   flags: () => (X.car.trapT > 0 ? 8 : 0) | (X.car.shieldT > 0 ? 16 : 0) | (X.car.spinT > 0 ? 32 : 0) | (GP.spectating() ? 64 : 0),
   prog: () => S.prog || 0,
   inRace: () => !!(S.run && S.inRun && !S.done),
+  startAt: () => (S.run && S.inRun ? S.startAt : 0),
 };
 
 const S = {
@@ -1164,6 +1165,7 @@ export function gpFrame(dt, now) {
         const k = Math.ceil(left);
         if (k <= 3 && k !== S.lastBeep) { S.lastBeep = k; X.sfx.beep(); }
         X.bigText(k <= 3 ? String(k) : (run.phase === 'quali' ? '예선 준비' : '결승 준비'), 0);
+        if (k === 3 && !S.sbHint) { S.sbHint = true; X.toast('GO 직전에 가속을 누르면 출발 부스터!'); }
       } else if (S.lastBeep !== 0) { S.lastBeep = 0; X.sfx.go(); X.bigText('GO!', 900); }
     }
     const n = a.cps.length, total = run.phase === 'race' ? run.laps * n + 1 : Infinity;

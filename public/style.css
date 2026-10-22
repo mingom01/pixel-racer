@@ -346,3 +346,9 @@ body.offline #quickBtn, body.offline #refreshBtn, body.offline #saveGoogleBtn { 
 .cartabs .btn.on { background: #3f9a34; box-shadow: inset 2px 2px 0 #7ed36c, inset -2px -3px 0 #245e1c; }
 .diff { font-weight: bold; letter-spacing: 1px; margin-right: 4px; }
 .diff.d1 { color: #3aa64a; } .diff.d2 { color: #3a8ad8; } .diff.d3 { color: #c89a10; } .diff.d4 { color: #e0602a; } .diff.d5 { color: #d82a3a; }
+
+#draft { position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%); width: 180px; height: 16px; border: 2px solid #000; background: rgba(0,0,0,.45); pointer-events: none; }
+#draft i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8ae8ff, #ffffff); }
+#draft span { position: absolute; inset: 0; text-align: center; font-size: 11px; line-height: 12px; color: #000; text-shadow: 0 0 2px #fff; letter-spacing: 2px; }
+#mirrorTag { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16px; color: #f2c230; text-shadow: 2px 2px 0 #000; pointer-events: none; white-space: nowrap; }
+body.touch #draft { bottom: calc(var(--ctl) + var(--tb) * 1.1 + 70px); }

@@ -1,6 +1,6 @@
 // 월드 메쉬 + 복셀 자동차 모델
 import * as THREE from './lib/three.module.min.js';
-import { textCanvas, signTexture } from './tex.js?v=mvjm6cjq';
+import { textCanvas, signTexture } from './tex.js?v=mvjmijjv';
 
 const W = WORLD;
 const lambert = (o) => new THREE.MeshLambertMaterial(o);

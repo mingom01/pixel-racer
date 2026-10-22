@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mvjm6cjq';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvjm6cjq';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvjm6cjq';
-import { makeLocalServer } from './local.js?v=mvjm6cjq';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvjm6cjq';
+import { makeTextures } from './tex.js?v=mvjmijjv';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvjmijjv';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvjmijjv';
+import { makeLocalServer } from './local.js?v=mvjmijjv';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvjmijjv';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -310,7 +310,9 @@ function physics(dt) {
   const d = car.def;
   const now = performance.now();
   const frozen = (G.race && G.race.inRace && now < G.race.startAt) || GP.frozen();
-  let inp = frozen ? { up: false, down: false, steer: readInput().steer, drift: false } : readInput();
+  const raw = readInput();
+  startBoost(raw, now);
+  let inp = frozen ? { up: false, down: false, steer: raw.steer, drift: false } : raw;
   inp = prePhysics(dt, inp);
   car.steer += (inp.steer - car.steer) * Math.min(1, dt * 7);
   car.boostT = Math.max(0, car.boostT - dt);
@@ -490,10 +492,88 @@ function physics(dt) {
   }
   car.frozen = frozen;
   car.input = inp;
+  if (!frozen) draftStep(dt);
   // 혹시 값이 깨지면 (NaN) 가까운 도로로 되돌림
   if (!Number.isFinite(car.x + car.y + car.z + car.vx + car.vz + car.yaw)) {
     const p = W.respawnPoint(Number.isFinite(car.x) ? car.x : -60, Number.isFinite(car.z) ? car.z : 0);
     spawnCar(p.x, p.z, p.yaw, p.y);
+  }
+}
+
+// 출발 부스터: GO 바로 직전(0.35초 안)에 가속을 누르면 완벽, 조금 일찍/늦게 누르면 보통. 너무 일찍 누르고 있으면 없음
+function startBoost(raw, now) {
+  const startAt = GP.active ? GP.startAt() : (G.race && G.race.inRace ? G.race.startAt : 0);
+  if (!startAt || now > startAt + 600) { car.upAt = 0; car.prevUp = raw.up; return; }
+  if (raw.up && !car.prevUp) car.upAt = now;
+  if (!raw.up) car.upAt = 0;
+  car.prevUp = raw.up;
+  if (car.sbFor === startAt) return;
+  const give = (kind) => {
+    car.sbFor = startAt;
+    const fx = Math.sin(car.yaw), fz = Math.cos(car.yaw), d = car.def;
+    if (kind === 'perfect') { car.vx = fx * d.maxV * 1.2; car.vz = fz * d.maxV * 1.2; car.boostT = 1.8; setTimeout(() => bigText('완벽한 출발 부스터!', 1300, true), 450); }
+    else { car.vx = fx * d.maxV * 0.85; car.vz = fz * d.maxV * 0.85; car.boostT = 1.0; setTimeout(() => bigText('출발 부스터!', 1100, true), 450); }
+    sfx.boost(); camState.shake = 0.25;
+    for (let i = 0; i < 14; i++) spawnPart(car.x - fx * 2.4, car.y + 0.5, car.z - fz * 2.4, -fx * 8 + (Math.random() - 0.5) * 4, Math.random() * 2, -fz * 8 + (Math.random() - 0.5) * 4, i % 2 ? 0x60c0ff : 0xffa020, 0.4, 0.8);
+  };
+  if (now < startAt) return;
+  if (car.upAt && car.upAt <= startAt) {
+    const early = startAt - car.upAt; // 몇 ms 일찍 눌렀나
+    if (early <= 350) give('perfect'); else if (early <= 750) give('good');
+    else { car.sbFor = startAt; toast('너무 일찍 눌렀어요. GO 직전에 눌러야 출발 부스터!'); }
+  } else if (car.upAt && car.upAt - startAt <= 160) give('good'); // GO 직후 바로 누름
+  else if (now - startAt > 160) car.sbFor = startAt;
+}
+
+// 드래프트: 앞차 바로 뒤(뒤꽁무니 4~28m, 좌우 좁게)에 붙어 있으면 게이지가 차고, 다 차면 순간 가속
+function draftStep(dt) {
+  const d = car.def, fx = Math.sin(car.yaw), fz = Math.cos(car.yaw), lx = fz, lz = -fx;
+  const sp = Math.hypot(car.vx, car.vz);
+  let behind = null;
+  if (sp > 14 && car.grounded && !GP.ghost() && !GP.spectating()) for (const p of G.players.values()) {
+    const q = p.disp;
+    if (!q || q.hidden || Math.abs(q.y - car.y) > 3) continue;
+    const dx = q.x - car.x, dz = q.z - car.z, dist = Math.hypot(dx, dz);
+    if (dist < 4 || dist > 28) continue;
+    const along = dx * fx + dz * fz, lat = Math.abs(dx * lx + dz * lz);
+    if (along < 3 || lat > 2.6 + dist * 0.07 || Math.cos(q.yaw - car.yaw) < 0.85) continue;
+    behind = p; break;
+  }
+  const was = car.draft || 0;
+  car.draft = behind ? Math.min(1, was + dt / 1.1) : Math.max(0, was - dt * 1.6);
+  if (behind && Math.random() < 0.6) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    spawnPart(car.x + lx * side * 1.4 + fx * 3, car.y + 0.8 + Math.random(), car.z + lz * side * 1.4 + fz * 3, -fx * 18, 0, -fz * 18, 0xffffff, 0.25, 0.35);
+  }
+  if (car.draft >= 1) {
+    car.draft = 0;
+    const vf = car.vx * fx + car.vz * fz, want = d.maxV * 1.22;
+    if (vf < want) { car.vx += fx * (want - vf); car.vz += fz * (want - vf); }
+    car.boostT = Math.max(car.boostT, 1.3);
+    sfx.boost(); bigText('드래프트!', 900, true); camState.shake = 0.2;
+  }
+  const el = $('draft');
+  el.classList.toggle('hidden', !(car.draft > 0.02));
+  if (car.draft > 0.02) el.firstElementChild.style.width = Math.round(car.draft * 100) + '%';
+}
+
+// 역전: 옆의 차를 앞질러 나가면 잠깐 후방 거울을 크게 띄워서 뒤로 밀려나는 모습을 보여줌
+function overtakeStep(now) {
+  const racing = GP.inRace() || !!(G.race && G.race.inRace && now > G.race.startAt);
+  const fx = Math.sin(car.yaw), fz = Math.cos(car.yaw), lx = fz, lz = -fx;
+  for (const p of G.players.values()) {
+    const q = p.disp;
+    if (!q || q.hidden) { p.ahead = undefined; continue; }
+    const dx = q.x - car.x, dz = q.z - car.z, along = dx * fx + dz * fz, lat = Math.abs(dx * lx + dz * lz);
+    const near = lat < 14 && Math.abs(along) < 30 && Math.abs(q.y - car.y) < 4;
+    if (!near) { p.ahead = undefined; continue; }
+    const ahead = along > 1.5 ? true : (along < -3 ? false : p.ahead);
+    if (p.ahead === true && ahead === false && racing && now - (p.passedAt || 0) > 3000) {
+      p.passedAt = now;
+      G.overtake = { until: now + 2600, name: p.name };
+      bigText('역전!', 1000, true); sfx.item();
+    }
+    p.ahead = ahead;
   }
 }
 
@@ -1357,9 +1437,12 @@ mirror.ortho = new THREE.OrthographicCamera(0, 1, 1, 0, -1, 1);
 const mirrorSize = new THREE.Vector2();
 function mirrorOn() {
   if (G.screen !== 'play' || !car.model || GP.spectating() || G.bigmap) return false;
+  if (G.overtake && performance.now() < G.overtake.until) return true;
   return settings.mirror === 2 || (settings.mirror === 1 && (GP.inRace() || !!(G.race && G.race.inRace)));
 }
 function renderMirror() {
+  const ot = G.overtake && performance.now() < G.overtake.until;
+  $('mirrorTag').classList.toggle('hidden', !ot || !mirrorOn());
   if (!mirrorOn()) return;
   const fx = Math.sin(car.yaw), fz = Math.cos(car.yaw), top = car.shape ? car.shape.top : 1.6;
   mirror.cam.position.set(car.x + fx * 0.3, car.y + top + 0.9, car.z + fz * 0.3);
@@ -1375,11 +1458,14 @@ function renderMirror() {
   }
   renderer.getSize(mirrorSize);
   const Wd = mirrorSize.x, Hd = mirrorSize.y, cssK = Wd / Math.max(1, innerWidth);
-  const mw = Math.min(Wd * (Wd > Hd ? 0.3 : 0.56), 420 * cssK), mh = mw * 96 / 320;
-  const cx = Wd / 2, cy = Hd - (GP.active ? 92 : 64) * cssK - mh / 2, b = Math.max(2, 3 * cssK);
+  const big = ot ? 1.45 : 1;
+  const mw = Math.min(Wd * (Wd > Hd ? 0.3 : 0.56), 420 * cssK) * big, mh = mw * 96 / 320;
+  const cx = Wd / 2, cy = Hd - (GP.active ? 112 : 70) * cssK - mh / 2, b = Math.max(2, 3 * cssK);
   mirror.ortho.right = Wd; mirror.ortho.top = Hd; mirror.ortho.updateProjectionMatrix();
   mirror.border.position.set(cx, cy, 0); mirror.border.scale.set(mw + b * 2, mh + b * 2, 1);
   mirror.view.position.set(cx, cy, 0); mirror.view.scale.set(mw, mh, 1);
+  mirror.border.material.color.setHex(ot ? 0xf2c230 : 0x15151a);
+  if (ot) { const t = $('mirrorTag'); t.textContent = '역전! ' + (G.overtake.name || '') + ' 추월'; t.style.top = ((Hd - cy + mh / 2 + b) / cssK + 6) + 'px'; }
   const ac = renderer.autoClear;
   renderer.autoClear = false;
   renderer.render(mirror.scene, mirror.ortho);
@@ -1404,6 +1490,7 @@ function frame() {
     carFx(s, true, dt);
     if (!GP.active) raceStep(now);
     gpFrame(dt, now);
+    overtakeStep(now);
     const sp = Math.hypot(car.vx, car.vz);
     $('spd').textContent = Math.round(sp * 3.6);
     engine(sp / car.def.maxV, car.input?.up ? 1 : 0, true);
@@ -1429,7 +1516,7 @@ function frame() {
 /* ================= 시작 ================= */
 initGP({ scene, camera, hemi, sun, T, car, G, send, spawnCar, toast, bigText, sfx, fmtTime, esc, colorCss, worldRoot, coinGroup, spawnPart, camState, openGarage, leaveRoom: () => $('mLeave').click() });
 if (COARSE) setTouch(true);
-window.__pr = { G, car, keys, touch, spawnCar, physics, updateRemotes, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); } } };
+window.__pr = { G, car, keys, touch, spawnCar, physics, updateRemotes, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); overtakeStep(performance.now()); } } };
 // 서버 설정은 기다리지 않고 따로 받음 (무료 서버가 자고 있으면 깨는 데 1분쯤 걸려서, 그동안 화면이 멈춘 것처럼 보이지 않게)
 $('offlineBtn').onclick = () => goOffline();
 requestAnimationFrame(frame);
