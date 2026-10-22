@@ -350,5 +350,15 @@ body.offline #quickBtn, body.offline #refreshBtn, body.offline #saveGoogleBtn { 
 #draft { position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%); width: 180px; height: 16px; border: 2px solid #000; background: rgba(0,0,0,.45); pointer-events: none; }
 #draft i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8ae8ff, #ffffff); }
 #draft span { position: absolute; inset: 0; text-align: center; font-size: 11px; line-height: 12px; color: #000; text-shadow: 0 0 2px #fff; letter-spacing: 2px; }
-#mirrorTag { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16px; color: #f2c230; text-shadow: 2px 2px 0 #000; pointer-events: none; white-space: nowrap; }
+#mirrorTag { position: absolute; transform: translateX(-50%); font-size: 13px; color: #f2c230; text-shadow: 2px 2px 0 #000; pointer-events: none; white-space: nowrap; }
 body.touch #draft { bottom: calc(var(--ctl) + var(--tb) * 1.1 + 70px); }
+
+#ink { position: absolute; inset: 0; pointer-events: none; }
+#ink i { position: absolute; background: radial-gradient(circle, #121016 0 55%, rgba(18,16,22,.85) 62%, transparent 72%); border-radius: 50%; }
+#ink i:nth-child(1) { left: 8%; top: 18%; width: 34vmin; height: 30vmin; }
+#ink i:nth-child(2) { left: 38%; top: 30%; width: 40vmin; height: 36vmin; }
+#ink i:nth-child(3) { left: 66%; top: 12%; width: 28vmin; height: 26vmin; }
+#ink i:nth-child(4) { left: 20%; top: 55%; width: 30vmin; height: 26vmin; }
+#ink i:nth-child(5) { left: 58%; top: 58%; width: 34vmin; height: 30vmin; }
+#ink i:nth-child(6) { left: 46%; top: 8%; width: 16vmin; height: 14vmin; }
+#flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s; }

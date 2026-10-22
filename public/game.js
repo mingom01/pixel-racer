@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mvjmijjv';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvjmijjv';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvjmijjv';
-import { makeLocalServer } from './local.js?v=mvjmijjv';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvjmijjv';
+import { makeTextures } from './tex.js?v=mvjreak5';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvjreak5';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvjreak5';
+import { makeLocalServer } from './local.js?v=mvjreak5';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvjreak5';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -1458,14 +1458,18 @@ function renderMirror() {
   }
   renderer.getSize(mirrorSize);
   const Wd = mirrorSize.x, Hd = mirrorSize.y, cssK = Wd / Math.max(1, innerWidth);
-  const big = ot ? 1.45 : 1;
-  const mw = Math.min(Wd * (Wd > Hd ? 0.3 : 0.56), 420 * cssK) * big, mh = mw * 96 / 320;
-  const cx = Wd / 2, cy = Hd - (GP.active ? 112 : 70) * cssK - mh / 2, b = Math.max(2, 3 * cssK);
+  // 오른쪽 위, 지도 왼쪽에 작게 (자리가 없으면 지도 아래)
+  const mm = $('minimap').getBoundingClientRect();
+  const cw = Math.min(210, innerWidth * 0.34), ch = cw * 96 / 320;
+  let left = mm.left - 10 - cw, mtop = mm.top;
+  if (left < 8) { left = innerWidth - 10 - cw; mtop = mm.bottom + 8; }
+  const mw = cw * cssK, mh = ch * cssK, b = Math.max(2, 3 * cssK);
+  const cx = (left + cw / 2) * cssK, cy = Hd - (mtop + ch / 2) * cssK;
   mirror.ortho.right = Wd; mirror.ortho.top = Hd; mirror.ortho.updateProjectionMatrix();
   mirror.border.position.set(cx, cy, 0); mirror.border.scale.set(mw + b * 2, mh + b * 2, 1);
   mirror.view.position.set(cx, cy, 0); mirror.view.scale.set(mw, mh, 1);
   mirror.border.material.color.setHex(ot ? 0xf2c230 : 0x15151a);
-  if (ot) { const t = $('mirrorTag'); t.textContent = '역전! ' + (G.overtake.name || '') + ' 추월'; t.style.top = ((Hd - cy + mh / 2 + b) / cssK + 6) + 'px'; }
+  if (ot) { const t = $('mirrorTag'); t.textContent = '역전! ' + (G.overtake.name || '') + ' 추월'; t.style.top = (mtop + ch + 6) + 'px'; t.style.left = (left + cw / 2) + 'px'; }
   const ac = renderer.autoClear;
   renderer.autoClear = false;
   renderer.render(mirror.scene, mirror.ortho);

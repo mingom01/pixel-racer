@@ -215,10 +215,11 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
       case 'gpCp': onCp(r, c, msg.i | 0, num(msg.x), num(msg.z)); break;
       case 'gi': { // 아이템 이벤트 중계
         const k = msg.k;
-        if (k === 'obj' && (msg.kind === 'banana' || msg.kind === 'water')) {
+        if (k === 'obj' && (msg.kind === 'banana' || msg.kind === 'water' || msg.kind === 'ice')) {
           broadcast(r, { t: 'gi', k, id: ++objSeq, kind: msg.kind, by: c.id, x: num(msg.x), z: num(msg.z), y: num(msg.y), x2: num(msg.x2), z2: num(msg.z2), y2: num(msg.y2) });
         } else if (k === 'rm') broadcast(r, { t: 'gi', k, id: msg.id | 0, by: c.id });
-        else if (k === 'missile' && r.clients.has(String(msg.to))) broadcast(r, { t: 'gi', k, from: c.id, to: String(msg.to) });
+        else if ((k === 'missile' || k === 'ufo') && r.clients.has(String(msg.to))) broadcast(r, { t: 'gi', k, from: c.id, to: String(msg.to) });
+        else if (k === 'zap' || k === 'ink' || k === 'devil') broadcast(r, { t: 'gi', k, from: c.id });
         else if (k === 'fx') broadcast(r, { t: 'gi', k, from: c.id, kind: String(msg.kind).slice(0, 12), to: msg.to ? String(msg.to) : null }, c);
         break;
       }

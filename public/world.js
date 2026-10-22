@@ -402,9 +402,12 @@
 
   // 경기장 위 한 지점의 노면 찾기 (본 코스 + 지름길). y 를 주면 그 높이(+2.5m) 아래에서 가장 높은 층을 고른다 (다리 위/아래 구분)
   // 반환: { tr: 찾은 길, i, u, d, e, hw, gap }
+  // 같은 층 안에서는 가장 가까운 선분을 고른다 (경사진 커브 안쪽에서 더 높은 선분을 잘못 고르면 땅이 튀어 덜컹거림)
+  const tcand = [];
   function trackAt(t, x, z, y) {
     const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
-    let best = null, bs = Infinity;
+    tcand.length = 0;
+    let level = -Infinity;
     for (const r of t.alts && t.alts.length ? [t, ...t.alts] : [t]) {
       const n = r.path.length;
       for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
@@ -412,18 +415,27 @@
         if (!arr) continue;
         for (const k of arr) {
           if (r.open && k === n - 1) continue;
-          const a = r.path[k], k2 = (k + 1) % n, b = r.path[k2];
-          const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1;
-          const u = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2));
+          const a = r.path[k], k2 = (k + 1) % n, b = r.path[k2], ta = r.tan[k], tb = r.tan[k2];
+          // 양 끝점의 법선(점마다 방향) 사이에 있는지로 위치를 정함 → 커브에서도 이음매 없이 이어짐
+          const f0 = (x - a[0]) * ta[0] + (z - a[1]) * ta[1], f1 = (x - b[0]) * tb[0] + (z - b[1]) * tb[1];
+          let u;
+          if (f0 >= 0 && f1 < 0) u = f0 / (f0 - f1);
+          else if (r.open && k === 0 && f0 < 0) u = 0;
+          else if (r.open && k === n - 2 && f1 >= 0) u = 1;
+          else continue;
+          const dx = b[0] - a[0], dz = b[1] - a[1];
           const d = Math.hypot(x - a[0] - dx * u, z - a[1] - dz * u);
           if (d > r.wbs[k] + 1.5) continue;
           const e = r.ey[k] + (r.ey[k2] - r.ey[k]) * u;
-          let sc = d;
-          if (y !== undefined) { if (e > y + 2.5) continue; sc = d - e * 100; }
-          if (sc < bs) { bs = sc; best = { tr: r, i: k, u, d, e, hw: r.hw[k], gap: r.gap[k] }; }
+          if (y !== undefined && e > y + 2.5) continue;
+          tcand.push({ tr: r, i: k, u, d, e, hw: r.hw[k], gap: r.gap[k] });
+          if (e > level) level = e;
         }
       }
     }
+    // y 를 주면 그 아래 가장 높은 층(높이 차 4m 이내 묶음)에서, 아니면 전체에서 가장 가까운 선분
+    let best = null;
+    for (const c of tcand) if ((y === undefined || c.e >= level - 4) && (!best || c.d < best.d)) best = c;
     return best;
   }
   // 경기장 길(본 코스 + 지름길)까지의 대략 거리 (장식/지형용)
@@ -798,7 +810,7 @@
         } else if (o.seg) {
           // 코스 벽: 항상 코스 안쪽으로 밀어냄 (빠르게 뚫고 나가도 되돌림)
           const [x1, z1, x2, z2, inx, inz, se] = o.seg;
-          if (y !== undefined && se !== undefined && (y > se + 5 || y < se - 4)) continue;
+          if (y !== undefined && se !== undefined && (y > se + 9 || y < se - 4)) continue;
           const dx = x2 - x1, dz = z2 - z1, l2 = dx * dx + dz * dz;
           const tt = ((pos.x - x1) * dx + (pos.z - z1) * dz) / l2;
           if (tt < -0.05 || tt > 1.05) continue;

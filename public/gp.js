@@ -1,7 +1,7 @@
 // 레이싱 방 (그랑프리) 클라이언트: 경기장, 대기실, 예선/결승, 아이템전/스피드전, 결과
 import * as THREE from './lib/three.module.min.js';
-import { canvasOf, tex, signTexture } from './tex.js?v=mvjmijjv';
-import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mvjmijjv';
+import { canvasOf, tex, signTexture } from './tex.js?v=mvjreak5';
+import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mvjreak5';
 
 const W = WORLD;
 const $ = id => document.getElementById(id);
@@ -13,7 +13,8 @@ export const GP = {
   frozen: () => !!(S.run && S.inRun && performance.now() < S.startAt),
   ghost: () => !!(S.run && S.run.phase === 'quali'),
   spectating: () => !!(S.run && !S.inRun),
-  flags: () => (X.car.trapT > 0 ? 8 : 0) | (X.car.shieldT > 0 ? 16 : 0) | (X.car.spinT > 0 ? 32 : 0) | (GP.spectating() ? 64 : 0),
+  flags: () => (X.car.trapT > 0 && !(X.car.iceT > 0) ? 8 : 0) | (X.car.shieldT > 0 ? 16 : 0) | (X.car.spinT > 0 ? 32 : 0) | (GP.spectating() ? 64 : 0)
+    | (X.car.zapT > 0 ? 128 : 0) | (X.car.angelT > 0 ? 256 : 0) | (X.car.iceT > 0 ? 512 : 0),
   prog: () => S.prog || 0,
   inRace: () => !!(S.run && S.inRun && !S.done),
   startAt: () => (S.run && S.inRun ? S.startAt : 0),
@@ -127,7 +128,9 @@ function makeTex() {
 }
 
 /* ================= 아이템 아이콘 ================= */
-const ITEM_NAME = { boost: '부스터', banana: '바나나', water: '물폭탄', missile: '미사일', shield: '실드', magnet: '자석', nitro: '니트로' };
+const ITEM_NAME = { boost: '부스터', banana: '바나나', water: '물폭탄', missile: '미사일', shield: '실드', magnet: '자석', nitro: '니트로',
+  zap: '번개', ink: '먹물', ufo: 'UFO', ice: '얼음 폭탄', angel: '천사', devil: '청개구리' };
+const ITEM_DESC = { zap: '나 빼고 모두 작아지고 느려짐', ink: '앞 사람들 화면에 먹물', ufo: '1등을 붙잡음', ice: '앞에 던져 얼림', angel: '6초 동안 모든 공격 무시', devil: '앞 사람들 핸들이 반대로' };
 const iconCache = {};
 function icon(kind) {
   if (iconCache[kind]) return iconCache[kind];
@@ -143,6 +146,12 @@ function icon(kind) {
     case 'shield': disc(5, 7.4, '#40e0ff'); disc(0, 5, 'rgba(64,224,255,0.3)'); px(4, 4, 2, 2, '#ffffff'); break;
     case 'magnet': px(3, 3, 3, 8, '#d83a3a'); px(10, 3, 3, 8, '#d83a3a'); px(3, 10, 10, 3, '#d83a3a'); px(3, 1, 3, 2, '#dddddd'); px(10, 1, 3, 2, '#dddddd'); px(4, 4, 1, 6, '#ff8a7a'); break;
     case 'nitro': px(5, 3, 6, 11, '#3a6fd8'); px(6, 1, 4, 2, '#aaaaaa'); px(5, 7, 6, 2, '#40e0ff'); px(6, 4, 1, 9, '#7aa8ff'); break;
+    case 'zap': px(8, 0, 4, 2, '#fff26a'); px(6, 2, 4, 3, '#ffe030'); px(4, 5, 8, 2, '#ffe030'); px(7, 7, 4, 3, '#ffd020'); px(5, 10, 4, 3, '#ffc010'); px(4, 13, 3, 3, '#ffb000'); px(7, 2, 1, 4, '#ffffff'); break;
+    case 'ink': disc(0, 6, '#18141e'); px(2, 3, 3, 3, '#18141e'); px(11, 11, 3, 3, '#18141e'); px(12, 2, 2, 2, '#18141e'); px(5, 5, 2, 2, '#6a4a9a'); break;
+    case 'ufo': px(3, 8, 10, 3, '#9aa0aa'); px(1, 9, 14, 1, '#7a808a'); px(5, 4, 6, 4, '#5ae06a'); px(6, 5, 2, 2, '#c8ffd0'); px(4, 11, 1, 1, '#ffe030'); px(8, 11, 1, 1, '#ffe030'); px(11, 11, 1, 1, '#ffe030'); px(5, 12, 6, 4, 'rgba(160,255,160,0.35)'); break;
+    case 'ice': px(7, 1, 2, 14, '#bfefff'); px(1, 7, 14, 2, '#bfefff'); px(3, 3, 2, 2, '#8ad8ff'); px(11, 3, 2, 2, '#8ad8ff'); px(3, 11, 2, 2, '#8ad8ff'); px(11, 11, 2, 2, '#8ad8ff'); px(6, 6, 4, 4, '#ffffff'); break;
+    case 'angel': px(4, 1, 8, 2, '#ffe060'); px(5, 2, 6, 1, '#fff6b0'); px(6, 5, 4, 6, '#ffffff'); px(1, 6, 5, 4, '#eaf4ff'); px(10, 6, 5, 4, '#eaf4ff'); px(6, 11, 4, 3, '#dfe8f4'); break;
+    case 'devil': disc(0, 6.5, '#3aa64a'); px(3, 3, 4, 4, '#ffffff'); px(9, 3, 4, 4, '#ffffff'); px(4, 4, 2, 2, '#000000'); px(10, 4, 2, 2, '#000000'); px(4, 10, 8, 1, '#1e5a26'); px(5, 11, 6, 1, '#d83a3a'); break;
   }
   return (iconCache[kind] = c.toDataURL());
 }
@@ -630,6 +639,12 @@ function g3() {
     splash: new THREE.CylinderGeometry(5, 5, 0.3, 12), splashMat: tm(0x5aa8f0, 0.5),
     banana: new THREE.BoxGeometry(0.6, 0.6, 1.6), bananaMat: new THREE.MeshLambertMaterial({ color: 0xf2d030, emissive: 0x3a3000 }),
     missile: new THREE.BoxGeometry(0.5, 0.5, 2.2), missileMat: new THREE.MeshBasicMaterial({ color: 0xe03030 }),
+    iceBall: new THREE.OctahedronGeometry(1, 0), iceMat: new THREE.MeshLambertMaterial({ color: 0xbfefff, emissive: 0x2a5a7a, flatShading: true }),
+    iceZone: tm(0xbfefff, 0.55), iceBox: new THREE.BoxGeometry(3.4, 2.4, 5.4), iceBoxMat: tm(0xbfefff, 0.5),
+    halo: new THREE.TorusGeometry(1.1, 0.18, 6, 16), haloMat: new THREE.MeshBasicMaterial({ color: 0xffe060 }),
+    saucer: new THREE.CylinderGeometry(3.2, 1.4, 1.2, 12), saucerMat: new THREE.MeshLambertMaterial({ color: 0x9aa0aa }),
+    dome: new THREE.SphereGeometry(1.4, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), domeMat: new THREE.MeshBasicMaterial({ color: 0x8affa0, transparent: true, opacity: 0.7 }),
+    beam: new THREE.CylinderGeometry(1.2, 3.6, 8, 12, 1, true), beamMat: tm(0x9affb0, 0.3),
   };
   return G3;
 }
@@ -644,8 +659,9 @@ function spawnObj(m) {
     o.mesh.add(b1, b2);
     o.mesh.position.set(m.x, o.y + 0.4, m.z);
   } else {
-    o.mesh = new THREE.Mesh(G.ball, G.ballMat);
-    o.splash = new THREE.Mesh(G.splash, G.splashMat); o.splash.visible = false;
+    const ice = m.kind === 'ice';
+    o.mesh = new THREE.Mesh(ice ? G.iceBall : G.ball, ice ? G.iceMat : G.ballMat);
+    o.splash = new THREE.Mesh(G.splash, ice ? G.iceZone : G.splashMat); o.splash.visible = false;
     o.splash.position.set(m.x2, o.y2 + 0.2, m.z2);
     X.scene.add(o.splash);
   }
@@ -658,12 +674,13 @@ function removeObj(id) {
   X.scene.remove(o.mesh); if (o.splash) X.scene.remove(o.splash);
   objs.delete(id);
 }
-function clearObjs() { for (const id of [...objs.keys()]) removeObj(id); for (const m of missiles) X.scene.remove(m.mesh); missiles.length = 0; }
+function clearObjs() { for (const id of [...objs.keys()]) removeObj(id); for (const m of missiles) X.scene.remove(m.mesh); missiles.length = 0; for (const u of ufos) X.scene.remove(u.grp); ufos.length = 0; }
 
 /* ================= 입장 / 퇴장 ================= */
 export function initGP(ctx) {
   X = ctx;
   TX = makeTex();
+  window.__gpS = S; // 테스트용
   bindUI();
 }
 export function enterGP(joined) {
@@ -710,7 +727,8 @@ function toGrid(slot) {
   resetEffects();
 }
 function resetEffects() {
-  Object.assign(X.car, { trapT: 0, spinT: 0, shieldT: 0, magnetT: 0 });
+  Object.assign(X.car, { trapT: 0, spinT: 0, shieldT: 0, magnetT: 0, zapT: 0, devilT: 0, iceT: 0, angelT: 0 });
+  S.inkT = 0;
 }
 
 /* ================= 메시지 ================= */
@@ -908,10 +926,12 @@ function rollItem() {
   const rl = rankList(), n = rl.length, i = rl.indexOf(X.G.myId);
   const f = n > 1 && i >= 0 ? i / (n - 1) : 0.5;
   const solo = others().length === 0;
-  const tbl = f < 0.34 ? { banana: 40, water: 25, shield: 20, boost: 15 }
-    : f < 0.67 ? { boost: 25, banana: 15, water: 20, missile: 20, shield: 10, magnet: 10 }
-      : { boost: 35, missile: 30, magnet: 25, water: 10 };
-  if (solo) { delete tbl.missile; delete tbl.magnet; }
+  // 앞 순위일수록 방어/견제, 뒤 순위일수록 역전용 공격 아이템
+  const tbl = f < 0.34 ? { banana: 28, water: 16, shield: 14, boost: 12, ice: 16, angel: 10, ink: 4 }
+    : f < 0.67 ? { boost: 18, banana: 10, water: 12, missile: 14, shield: 8, magnet: 8, ice: 10, ink: 10, devil: 6, angel: 4 }
+      : { boost: 22, missile: 18, magnet: 14, ufo: 12, zap: 10, ink: 10, devil: 8, water: 6 };
+  if (solo) for (const k of ['missile', 'magnet', 'ufo', 'zap', 'ink', 'devil']) delete tbl[k];
+  if (i === 0) delete tbl.ufo;
   let sum = 0; for (const k in tbl) sum += tbl[k];
   let r = Math.random() * sum;
   for (const k in tbl) { r -= tbl[k]; if (r <= 0) return k; }
@@ -943,6 +963,12 @@ export function useItem() {
     case 'water': { const d = 30 + sp * 0.4; const x2 = car.x + fx * d, z2 = car.z + fz * d; X.send({ t: 'gi', k: 'obj', kind: 'water', x: car.x, z: car.z, y: car.y, x2, z2, y2: W.groundHeight(x2, z2, car.y + 3) }); X.sfx.item(); break; }
     case 'missile': { const to = targetAhead(); if (to) { X.send({ t: 'gi', k: 'missile', to }); X.sfx.boost(); } else X.toast('맞출 상대가 없어요'); break; }
     case 'shield': car.shieldT = 7; X.sfx.shield(); break;
+    case 'angel': car.angelT = 6; X.sfx.shield(); X.bigText('천사! 6초 무적', 900, true); break;
+    case 'zap': X.send({ t: 'gi', k: 'zap' }); X.sfx.boost(); X.bigText('번개!', 800, true); flash(0xfff6a0); break;
+    case 'ink': X.send({ t: 'gi', k: 'ink' }); X.sfx.item(); X.toast('앞 사람들에게 먹물 발사!'); break;
+    case 'devil': X.send({ t: 'gi', k: 'devil' }); X.sfx.item(); X.toast('청개구리! 앞 사람들 핸들이 반대로'); break;
+    case 'ufo': { const rl = rankList(), to = rl[0] !== X.G.myId ? rl[0] : rl[1]; if (to) { X.send({ t: 'gi', k: 'ufo', to }); X.sfx.item(); X.toast('UFO 출동! 1등을 잡으러 가요'); } break; }
+    case 'ice': { const d = 26 + sp * 0.35, x2 = car.x + fx * d, z2 = car.z + fz * d; X.send({ t: 'gi', k: 'obj', kind: 'ice', x: car.x, z: car.z, y: car.y, x2, z2, y2: W.groundHeight(x2, z2, car.y + 3) }); X.sfx.item(); break; }
     case 'magnet': { const to = targetAhead(); if (to) { car.magnetT = 2.5; car.magnetTo = to; X.sfx.item(); } break; }
   }
   renderHud();
@@ -962,10 +988,42 @@ function itemEvent(m) {
     missiles.push({ mesh, x: src.x, y: src.y + 1.5, z: src.z, to: m.to, from: m.from, t0: performance.now() });
     if (m.to === me) { S.missileWarn = performance.now(); X.bigText('미사일 경보!', 1200, true); X.sfx.warn(); }
   } else if (m.k === 'fx' && m.kind === 'hit') X.sfx.crash(6);
+  else if (m.k === 'zap') {
+    flash(0xfff6a0); X.sfx.crash(4);
+    if (m.from !== me) { hitMe('zap'); X.toast(nameOf(m.from) + ' 님의 번개!'); }
+  } else if (m.k === 'ink' || m.k === 'devil') {
+    // 쓴 사람보다 앞에 있는 사람만 맞음
+    const rl = rankList();
+    if (m.from !== me && rl.indexOf(me) >= 0 && rl.indexOf(me) < rl.indexOf(m.from)) { hitMe(m.k); X.toast(nameOf(m.from) + ' 님의 ' + ITEM_NAME[m.k] + '!'); }
+  } else if (m.k === 'ufo') {
+    const src = m.from === me ? X.car : X.G.players.get(m.from)?.disp;
+    if (!src) return;
+    const grp = new THREE.Group(), G = g3();
+    const body = new THREE.Mesh(G.saucer, G.saucerMat), dome = new THREE.Mesh(G.dome, G.domeMat), beam = new THREE.Mesh(G.beam, G.beamMat);
+    dome.position.y = 0.5; beam.position.y = -4.6; beam.visible = false;
+    grp.add(body, dome, beam); grp.position.set(src.x, src.y + 9, src.z);
+    X.scene.add(grp);
+    ufos.push({ grp, beam, x: src.x, y: src.y + 9, z: src.z, to: m.to, t0: performance.now(), hold: 0 });
+    if (m.to === me) { X.bigText('UFO가 쫓아와요!', 1200, true); X.sfx.warn(); }
+  }
+}
+const ufos = [];
+function flash(col) {
+  const el = $('flash');
+  el.style.background = '#' + col.toString(16).padStart(6, '0');
+  el.classList.remove('hidden'); el.style.opacity = 0.6;
+  setTimeout(() => { el.style.opacity = 0; }, 80);
+  setTimeout(() => el.classList.add('hidden'), 400);
 }
 function hitMe(kind) {
   const car = X.car;
+  if (car.angelT > 0) { X.sfx.pop(); X.toast('천사가 막아줬어요!'); return; }
   if (car.shieldT > 0) { car.shieldT = 0; X.sfx.pop(); X.toast('실드가 막아줬어요!'); return; }
+  if (kind === 'zap') { car.zapT = 2.8; X.sfx.crash(6); return; }
+  if (kind === 'ink') { S.inkT = 3.5; X.sfx.splash(); return; }
+  if (kind === 'devil') { car.devilT = 3.2; X.bigText('청개구리! 핸들이 반대로', 1400, true); X.sfx.warn(); return; }
+  if (kind === 'ufo') { car.trapT = 2.2; car.vx *= 0.2; car.vz *= 0.2; X.sfx.warn(); return; }
+  if (kind === 'ice') { car.trapT = 1.7; car.iceT = 1.7; car.vx *= 0.1; car.vz *= 0.1; X.sfx.pop(); X.bigText('꽁꽁!', 900, true); return; }
   const fx = Math.sin(car.yaw), fz = Math.cos(car.yaw);
   if (kind === 'banana') {
     car.spinT = 1.0; car.yawRate = (Math.random() < 0.5 ? -1 : 1) * 9;
@@ -1019,7 +1077,16 @@ export function prePhysics(dt, inp) {
   if (!GP.active) return inp;
   const car = X.car;
   car.shieldT = Math.max(0, (car.shieldT || 0) - dt);
+  car.angelT = Math.max(0, (car.angelT || 0) - dt);
+  car.iceT = Math.max(0, (car.iceT || 0) - dt);
+  S.inkT = Math.max(0, (S.inkT || 0) - dt);
   if (GP.spectating()) return { up: false, down: false, steer: 0, drift: false };
+  if (car.zapT > 0) {
+    car.zapT -= dt;
+    const sp = Math.hypot(car.vx, car.vz), lim = car.def.maxV * 0.55;
+    if (sp > lim) { const k = Math.max(lim / sp, Math.exp(-3 * dt)); car.vx *= k; car.vz *= k; }
+  }
+  if (car.devilT > 0) { car.devilT -= dt; inp = { ...inp, steer: -inp.steer }; }
   if (car.trapT > 0) {
     car.trapT -= dt;
     car.vx *= Math.exp(-10 * dt); car.vz *= Math.exp(-10 * dt);
@@ -1075,7 +1142,7 @@ export function gpFrame(dt, now) {
       b.m.position.y = b.y + 1.6 + Math.sin(t * 3 + b.x) * 0.2;
       if (!GP.spectating() && Math.hypot(car.x - b.x, car.z - b.z) < 2.6 && Math.abs(car.y - b.y) < 4) {
         b.back = now + 2500; b.m.visible = false;
-        if (S.items.length < 2) { S.items.push(rollItem()); X.sfx.item(); renderHud(); }
+        if (S.items.length < 2) { const it = rollItem(); S.items.push(it); X.sfx.item(); renderHud(); if (ITEM_DESC[it]) X.toast(ITEM_NAME[it] + ': ' + ITEM_DESC[it]); }
         for (let k = 0; k < 8; k++) X.spawnPart(b.x, b.y + 1.6, b.z, (Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6, 0x9a80ff, 0.5, 0.7);
       }
     }
@@ -1097,9 +1164,9 @@ export function gpFrame(dt, now) {
         if (!o.splash.visible) { o.splash.visible = true; o.mesh.visible = false; X.sfx.splash(); }
         const s = 1 + Math.sin(t * 6) * 0.05;
         o.splash.scale.set(s, 1, s);
-        if (Math.random() < 0.3) X.spawnPart(o.x2 + (Math.random() - 0.5) * 8, o.y2 + 0.5, o.z2 + (Math.random() - 0.5) * 8, 0, 2 + Math.random() * 2, 0, 0x8ac8ff, 0.5, 0.6);
-        if (!GP.spectating() && !o.hitBy.has(me) && Math.hypot(car.x - o.x2, car.z - o.z2) < 5.2 && Math.abs(car.y - o.y2) < 4) { o.hitBy.add(me); hitMe('water'); }
-        if (age > fly + 3.5) removeObj(o.id);
+        if (Math.random() < 0.3) X.spawnPart(o.x2 + (Math.random() - 0.5) * 8, o.y2 + 0.5, o.z2 + (Math.random() - 0.5) * 8, 0, 2 + Math.random() * 2, 0, o.kind === 'ice' ? 0xffffff : 0x8ac8ff, 0.5, 0.6);
+        if (!GP.spectating() && !o.hitBy.has(me) && Math.hypot(car.x - o.x2, car.z - o.z2) < 5.2 && Math.abs(car.y - o.y2) < 4) { o.hitBy.add(me); hitMe(o.kind === 'ice' ? 'ice' : 'water'); }
+        if (age > fly + (o.kind === 'ice' ? 5 : 3.5)) removeObj(o.id);
       }
     }
   }
@@ -1130,29 +1197,54 @@ export function gpFrame(dt, now) {
     if (GP.spectating() || Math.hypot(car.x - m.x, car.z - m.z) > 40 || Math.abs(car.y - m.e) > 5) return;
     for (const bx of boxes) if (bx.y < car.y + 1.6) hitMover(car, bx);
   });
-  // 낭떠러지로 떨어지면 마지막 체크포인트로
-  if (a.elev && !GP.spectating() && car.respawnCd <= 0) {
+  // 낭떠러지로 떨어지거나 코스 밖으로 나가면 트랙으로 복귀
+  if (!GP.spectating() && car.respawnCd <= 0) {
     const on = W.trackAt(a, car.x, car.z, car.y + 2.5);
     if (!on || on.gap) {
       const below = W.trackAt(a, car.x, car.z);
-      if ((below ? below.e : 0) - car.y > 5 || (car.grounded && !on)) { car.respawnCd = 1; X.toast('추락! 마지막 체크포인트로 돌아가요'); respawnGP(); }
-    }
+      if (below && below.e - car.y > 5) { car.respawnCd = 1; S.offT = 0; X.toast('추락! 마지막 체크포인트로 돌아가요'); respawnGP(); }
+      else if (!on) {
+        S.offT = (S.offT || 0) + dt;
+        if (S.offT > 0.5 && (car.grounded || !below || car.y < -5)) { car.respawnCd = 1; S.offT = 0; X.toast('코스 이탈! 트랙으로 돌아가요'); respawnGP(); }
+      }
+    } else S.offT = 0;
   }
 
-  // 실드 / 물방울 표시
-  const showFx = (key, x, y, z, shield, trap) => {
+  // UFO: 1등에게 날아가서 붙잡고 잠시 머묾
+  for (let i = ufos.length - 1; i >= 0; i--) {
+    const u = ufos[i], tgt = u.to === me ? car : X.G.players.get(u.to)?.disp, age = (now - u.t0) / 1000;
+    if (!tgt || age > 9) { X.scene.remove(u.grp); ufos.splice(i, 1); continue; }
+    if (!u.hold) {
+      const dx = tgt.x - u.x, dy = tgt.y + 7 - u.y, dz = tgt.z - u.z, d = Math.hypot(dx, dy, dz), st = Math.min(d, (70 + age * 30) * dt);
+      u.x += dx / d * st; u.y += dy / d * st; u.z += dz / d * st;
+      if (d < 3) { u.hold = now; u.beam.visible = true; if (u.to === me) hitMe('ufo'); }
+    } else { u.x = tgt.x; u.y = tgt.y + 7; u.z = tgt.z; if (now - u.hold > 2200) { X.scene.remove(u.grp); ufos.splice(i, 1); continue; } }
+    u.grp.position.set(u.x, u.y, u.z); u.grp.rotation.y = t * 3;
+  }
+  // 실드 / 물방울 / 얼음 / 천사 표시, 번개 맞으면 차가 작아짐
+  const showFx = (key, x, y, z, shield, trap, ice, angel) => {
     let f = fxMeshes.get(key);
     if (!f) {
-      f = { s: new THREE.Mesh(g3().bubble, g3().shieldMat), w: new THREE.Mesh(g3().bubble, g3().waterMat) };
-      X.scene.add(f.s, f.w); fxMeshes.set(key, f);
+      const G = g3();
+      f = { s: new THREE.Mesh(G.bubble, G.shieldMat), w: new THREE.Mesh(G.bubble, G.waterMat), i: new THREE.Mesh(G.iceBox, G.iceBoxMat), h: new THREE.Mesh(G.halo, G.haloMat) };
+      f.h.rotation.x = Math.PI / 2;
+      X.scene.add(f.s, f.w, f.i, f.h); fxMeshes.set(key, f);
     }
-    f.s.visible = shield; f.w.visible = trap;
-    f.s.position.set(x, y + 1, z); f.w.position.set(x, y + 1.2, z);
+    f.s.visible = shield; f.w.visible = trap; f.i.visible = ice; f.h.visible = angel;
+    f.s.position.set(x, y + 1, z); f.w.position.set(x, y + 1.2, z); f.i.position.set(x, y + 1.1, z); f.h.position.set(x, y + 3.3 + Math.sin(t * 4) * 0.15, z);
     f.s.rotation.y = t; f.w.scale.setScalar(1 + Math.sin(t * 8) * 0.04);
   };
-  showFx('me', car.x, car.y, car.z, car.shieldT > 0, car.trapT > 0);
-  for (const p of X.G.players.values()) if (p.disp) showFx(p.id, p.disp.x, p.disp.y, p.disp.z, !!(p.flags & 16), !!(p.flags & 8));
-  for (const [k, f] of fxMeshes) if (k !== 'me' && !X.G.players.has(k)) { X.scene.remove(f.s, f.w); fxMeshes.delete(k); }
+  showFx('me', car.x, car.y, car.z, car.shieldT > 0, car.trapT > 0 && !(car.iceT > 0), car.iceT > 0, car.angelT > 0);
+  if (car.model) car.model.root.scale.setScalar(car.zapT > 0 ? 0.55 : 1);
+  for (const p of X.G.players.values()) if (p.disp) {
+    showFx(p.id, p.disp.x, p.disp.y, p.disp.z, !!(p.flags & 16), !!(p.flags & 8), !!(p.flags & 512), !!(p.flags & 256));
+    if (p.model) p.model.root.scale.setScalar(p.flags & 128 ? 0.55 : 1);
+  }
+  for (const [k, f] of fxMeshes) if (k !== 'me' && !X.G.players.has(k)) { X.scene.remove(f.s, f.w, f.i, f.h); fxMeshes.delete(k); }
+  // 먹물 화면
+  const ink = $('ink');
+  ink.classList.toggle('hidden', !(S.inkT > 0));
+  if (S.inkT > 0) ink.style.opacity = Math.min(1, S.inkT / 0.6);
 
   // 내 차 숨김 (관전)
   if (car.model) car.model.root.visible = !GP.spectating();
