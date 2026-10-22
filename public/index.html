@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="픽셀 레이서">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=mvj4y0wt">
 </head>
 <body>
 <canvas id="c3d"></canvas>
@@ -235,9 +235,22 @@
 
 <div id="conn" class="dark hidden"><span id="connMsg">서버에 연결 중...</span> <button class="btn small hidden" id="offlineBtn">혼자 하기 (오프라인)</button></div>
 
-<script src="net-config.js"></script>
-<script src="world.js"></script>
-<script src="gp_rules.js"></script>
-<script type="module" src="game.js"></script>
+<script>
+// 파일을 못 불러오면(예전 파일이 섞였거나 네트워크 문제) "불러오는 중"에 멈추지 않고 새로고침 안내
+function bootFail(msg) {
+  if (window.__booted || document.getElementById('bootFail')) return;
+  const d = document.createElement('div');
+  d.id = 'bootFail';
+  d.style.cssText = 'position:fixed;left:50%;bottom:20%;transform:translateX(-50%);background:#222;color:#fff;padding:14px 18px;border:2px solid #000;z-index:99;text-align:center;font-size:14px;max-width:90vw';
+  d.innerHTML = '게임을 불러오지 못했어요. 새로고침해 주세요.<br><small style="opacity:.6">' + String(msg || '').slice(0, 120).replace(/</g, '&lt;') + '</small><br><button class="btn" style="margin-top:8px" onclick="location.reload()">새로고침</button>';
+  document.body.appendChild(d);
+}
+addEventListener('error', e => { if (!window.__booted) bootFail(e.message || (e.target && e.target.src) || ''); }, true);
+setTimeout(() => { if (!window.__booted) bootFail('시간 초과'); }, 45000);
+</script>
+<script src="net-config.js?v=mvj4y0wt"></script>
+<script src="world.js?v=mvj4y0wt"></script>
+<script src="gp_rules.js?v=mvj4y0wt"></script>
+<script type="module" src="game.js?v=mvj4y0wt"></script>
 </body>
 </html>

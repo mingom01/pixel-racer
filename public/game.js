@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js';
-import { initAudio, engine, sfx, setVolume } from './audio.js';
-import { makeLocalServer } from './local.js';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js';
+import { makeTextures } from './tex.js?v=mvj4y0wt';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvj4y0wt';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvj4y0wt';
+import { makeLocalServer } from './local.js?v=mvj4y0wt';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvj4y0wt';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -673,6 +673,12 @@ function connect() {
   if (!WS_URL) { goOffline(); return; }
   const ws = new WebSocket(WS_URL);
   G.ws = ws;
+  if (!everOpened) setTimeout(() => {
+    if (everOpened || G.offline || G.ws !== ws || ws.readyState === 1) return;
+    $('connMsg').textContent = '서버를 깨우는 중이에요... (무료 서버라 처음엔 최대 1분 걸려요)';
+    $('offlineBtn').classList.remove('hidden');
+    $('conn').classList.remove('hidden');
+  }, 1500);
   ws.onopen = () => {
     everOpened = true;
     $('conn').classList.add('hidden');
@@ -1346,9 +1352,16 @@ function frame() {
 initGP({ scene, camera, hemi, sun, T, car, G, send, spawnCar, toast, bigText, sfx, fmtTime, esc, colorCss, worldRoot, coinGroup, spawnPart, camState, openGarage, leaveRoom: () => $('mLeave').click() });
 if (COARSE) setTouch(true);
 window.__pr = { G, car, keys, touch, spawnCar, physics, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); } } };
-try { G.cfg = SERVER ? await (await fetch(SERVER + '/config.json', { cache: 'no-cache' })).json() : {}; } catch (e) { G.cfg = {}; }
+// 서버 설정은 기다리지 않고 따로 받음 (무료 서버가 자고 있으면 깨는 데 1분쯤 걸려서, 그동안 화면이 멈춘 것처럼 보이지 않게)
 $('offlineBtn').onclick = () => goOffline();
-setupGoogle();
 requestAnimationFrame(frame);
 connect();
+(async () => {
+  for (let k = 0; k < 6; k++) {
+    try { G.cfg = SERVER ? await (await fetch(SERVER + '/config.json', { cache: 'no-cache' })).json() : {}; break; } catch (e) { G.cfg = {}; await new Promise(r => setTimeout(r, 5000)); }
+  }
+  setupGoogle();
+})();
+document.getElementById('bootFail')?.remove();
+window.__booted = true;
 setInterval(() => send({ t: 'ping', n: Date.now() }), 20000);

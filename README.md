@@ -86,6 +86,7 @@ window.PR_SERVER = 'https://pixel-racer-xxxx.onrender.com';
 ### 3. 구글 로그인
 아래 "구글 로그인 켜기"대로 클라이언트 ID를 만들고, **승인된 JavaScript 원본**에 Render 주소(`https://….onrender.com`)를 추가 → 그 ID를 Render 환경변수 `GOOGLE_CLIENT_ID` 에 넣으면 끝.
 
+> 고친 뒤 push 하기 전에 `node bump.js` 를 실행하세요 (브라우저가 예전 파일을 섞어 쓰지 않게 주소에 버전을 붙여요).
 > GitHub 에 push 하면 Render 가 자동으로 다시 배포합니다. 계정은 Supabase 에 있으니 재배포해도 코인·차가 그대로예요.
 > 게스트로 하던 사람은 로비의 **구글로 저장하기** 버튼으로 지금까지 모은 걸 구글 계정으로 옮길 수 있어요.
 
