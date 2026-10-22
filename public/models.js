@@ -41,16 +41,19 @@ function roadStrip(s, y, vTile) {
   return g;
 }
 // 트랙 리본 (a..b 폭 구간, 닫힌 경로)
-export function ribbon(t, a, b, y, vTile) {
+// a, b: 중심선에서의 좌우 거리 (숫자 또는 점 번호 → 거리 함수), y: 높이 (경기장은 t.ey 높이에 더함)
+// skip(i): true 면 i → i+1 구간을 비움 (낭떠러지 등)
+export function ribbon(t, a, b, y, vTile, skip) {
   const n = t.path.length, pos = [], uv = [], idx = [];
+  const fa = typeof a === 'function' ? a : () => a, fb = typeof b === 'function' ? b : () => b;
   let dist = 0;
   for (let i = 0; i <= n; i++) {
-    const p = t.path[i % n], tg = t.tan[i % n];
+    const p = t.path[i % n], tg = t.tan[i % n], yy = y + (t.ey ? t.ey[i % n] : 0), oa = fa(i % n), ob = fb(i % n);
     if (i > 0) { const q = t.path[i - 1]; dist += Math.hypot(p[0] - q[0], p[1] - q[1]); }
     const nx = tg[1], nz = -tg[0];
-    pos.push(p[0] + nx * a, y, p[1] + nz * a, p[0] + nx * b, y, p[1] + nz * b);
+    pos.push(p[0] + nx * oa, yy, p[1] + nz * oa, p[0] + nx * ob, yy, p[1] + nz * ob);
     uv.push(0, dist / vTile, 1, dist / vTile);
-    if (i < n) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
+    if (i < n && !(skip && skip(i))) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -58,7 +61,7 @@ export function ribbon(t, a, b, y, vTile) {
   g.setIndex(idx);
   g.computeVertexNormals();
   // 법선이 아래를 향하면 뒤집기
-  if (g.attributes.normal.getY(0) < 0) { const ix = g.index.array; for (let i = 0; i < ix.length; i += 3) { const tmp = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = tmp; } g.computeVertexNormals(); }
+  if (idx.length && g.attributes.normal.getY(idx[0]) < 0) { const ix = g.index.array; for (let i = 0; i < ix.length; i += 3) { const tmp = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = tmp; } g.computeVertexNormals(); }
   return g;
 }
 // 쐐기 (경사로)
@@ -470,7 +473,7 @@ export function startLine(t, T) {
   const uv = g.attributes.uv;
   for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * t.w / 4, uv.getY(i) * 0.75);
   const m = new THREE.Mesh(g, lambert({ map: T.checker }));
-  m.position.set(p[0], 0.11, p[1]);
+  m.position.set(p[0], 0.11 + (t.ey ? t.ey[0] : 0), p[1]);
   m.rotation.y = Math.atan2(tg[0], tg[1]);
   m.receiveShadow = true;
   return m;
@@ -479,7 +482,7 @@ export function startLine(t, T) {
 export function gantry(t, T) {
   const grp = new THREE.Group();
   const p = t.path[0], tg = t.tan[0];
-  grp.position.set(p[0], 0, p[1]);
+  grp.position.set(p[0], t.ey ? t.ey[0] : 0, p[1]);
   grp.rotation.y = Math.atan2(tg[0], tg[1]);
   const post = lambert({ map: T.concrete });
   const half = t.w / 2 + 2.5;

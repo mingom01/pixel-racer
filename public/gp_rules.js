@@ -2,7 +2,9 @@
 // 서버(server.js)와 오프라인 혼자 하기(local.js)가 같이 쓴다.
 (function (root) {
 const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]; // F1 포인트
-const QUALI_MS = (typeof process !== 'undefined' && +process.env.GP_QUALI_MS) || 75000;
+const QUALI_ENV = (typeof process !== 'undefined' && +process.env.GP_QUALI_MS) || 0;
+// 예선 시간: 코스가 길수록 길게 (대략 두 바퀴 이상 돌 수 있게)
+function qualiMs(t) { return QUALI_ENV || Math.round(Math.max(75000, Math.min(240000, t.length / 40 * 1000 * 1.9 + 15000)) / 1000) * 1000; }
 
 function makeGP({ W, broadcast, save, profileOf, log }) {
   const ARENA_IDS = W.arenas.map(a => a.id);
@@ -60,9 +62,10 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
     const g = r.gp, now = Date.now();
     const racers = new Map();
     order.forEach((id, k) => racers.set(id, { slot: k, c: 0, done: false, lapStart: 0, laps: [], best: null }));
+    const qms = qualiMs(W.trackById[g.set.track]);
     g.run = {
       phase, track: g.set.track, laps: g.set.laps, mode: g.set.mode, team: g.set.team,
-      startAt: now + (phase === 'quali' ? 3500 : 5000), endAt: phase === 'quali' ? now + 3500 + QUALI_MS : 0,
+      startAt: now + (phase === 'quali' ? 3500 : 5000), endAt: phase === 'quali' ? now + 3500 + qms : 0,
       racers, finished: [], firstFin: 0, fastest: null, size: racers.size,
     };
     g.phase = phase;
@@ -103,7 +106,7 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
       p.done = true;
       const place = run.finished.length + 1, time = now - run.startAt;
       run.finished.push({ id: c.id, name: c.user.name, time, place, best: p.best });
-      if (!run.firstFin) { run.firstFin = now; run.endAt = now + 12000; }
+      if (!run.firstFin) { run.firstFin = now; run.endAt = now + Math.round(Math.max(12000, Math.min(40000, t.length / 40 * 1000 * 0.3))); }
       broadcast(r, { t: 'gpFin', id: c.id, name: c.user.name, place, time, endIn: run.endAt - now });
       checkEnd(r);
     }
@@ -136,7 +139,7 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
     const results = run.finished.map(f => ({ ...f, dnf: false }));
     const dnf = [...run.racers.entries()].filter(([, p]) => !p.done).sort((a, b) => b[1].c - a[1].c);
     for (const [id, p] of dnf) results.push({ id, name: r.clients.get(id)?.user.name || '?', time: null, place: null, best: p.best, dnf: true });
-    const mult = 0.25 + run.laps * 0.25;
+    const mult = (0.25 + run.laps * 0.25) * Math.max(1, Math.min(2.5, W.trackById[run.track].length / 2600));
     for (const res of results) {
       res.pts = res.place ? (POINTS[res.place - 1] || 0) : 0;
       res.fl = !!(run.fastest && run.fastest.id === res.id && res.place && res.place <= 10);
@@ -213,7 +216,7 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
       case 'gi': { // 아이템 이벤트 중계
         const k = msg.k;
         if (k === 'obj' && (msg.kind === 'banana' || msg.kind === 'water')) {
-          broadcast(r, { t: 'gi', k, id: ++objSeq, kind: msg.kind, by: c.id, x: num(msg.x), z: num(msg.z), x2: num(msg.x2), z2: num(msg.z2) });
+          broadcast(r, { t: 'gi', k, id: ++objSeq, kind: msg.kind, by: c.id, x: num(msg.x), z: num(msg.z), y: num(msg.y), x2: num(msg.x2), z2: num(msg.z2), y2: num(msg.y2) });
         } else if (k === 'rm') broadcast(r, { t: 'gi', k, id: msg.id | 0, by: c.id });
         else if (k === 'missile' && r.clients.has(String(msg.to))) broadcast(r, { t: 'gi', k, from: c.id, to: String(msg.to) });
         else if (k === 'fx') broadcast(r, { t: 'gi', k, from: c.id, kind: String(msg.kind).slice(0, 12), to: msg.to ? String(msg.to) : null }, c);

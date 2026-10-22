@@ -76,7 +76,7 @@
       for (let k = 0; k < per; k++) {
         const t = k / per, t2 = t * t, t3 = t2 * t;
         const f = (a, b, c, d) => 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
-        out.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
+        out.push(p1.map((_, d) => f(p0[d], p1[d], p2[d], p3[d])));
       }
     }
     return out;
@@ -93,7 +93,7 @@
       const d = k * total / cnt;
       while (cum[j + 1] < d) j++;
       const a = pts[j], b = pts[(j + 1) % n], t = (d - cum[j]) / Math.max(1e-6, cum[j + 1] - cum[j]);
-      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+      out.push(a.map((v, d) => v + (b[d] - v) * t));
     }
     return { pts: out, length: total };
   }
@@ -119,7 +119,8 @@
   }
   function makeTrack(id, name, raw, w, nCp, ribbon, step) {
     const r = resampleClosed(raw, step);
-    const path = r.pts, n = path.length;
+    const ext = r.pts[0].length > 2 ? r.pts.map(q => q.slice(2)) : null;
+    const path = ext ? r.pts.map(q => [q[0], q[1]]) : r.pts, n = path.length;
     const tan = path.map((p, i) => {
       const a = path[(i - 1 + n) % n], b = path[(i + 1) % n];
       const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1;
@@ -127,7 +128,7 @@
     });
     const cps = [];
     for (let k = 0; k < nCp; k++) cps.push(Math.round(k * n / nCp) % n);
-    return { id, name, w, path, tan, cps, length: r.length, ribbon };
+    return { id, name, w, path, tan, cps, length: r.length, ribbon, ext };
   }
   const tracks = [
     makeTrack('circuit', '그랑프리 서킷', catmullClosed(CIRCUIT_CTRL, 16), 22, 16, true, 5),
@@ -206,35 +207,166 @@
       ctrl: [[0, -500], [0, 0], [0, 400], [40, 520], [160, 560], [300, 520], [340, 400], [340, 100], [380, 0], [480, -60], [560, -200], [540, -420], [440, -560], [260, -640], [100, -640], [25, -620], [2, -560]],
       jumps: [], boosts: [0.05, 0.36, 0.7], items: [0.2, 0.52, 0.85],
     },
+    /*NEW_ARENAS_START*/
+    // ---- 큰 경기장 (높이·폭이 바뀌는 코스). ctrl: [x, z, 높이, 폭] / 위치는 컨트롤 포인트 번호(1 이상) 또는 비율 ----
+    {
+      id: 'figure8', name: '8자 고가도로', theme: 'dusk', diff: 2, w: 22, desc: '8자로 꼬인 코스. 다리 위로 지나간 길을 다시 아래로 지나간다',
+      ctrl: [[0, -500, 0], [0, -260, 3], [0, 0, 13], [0, 260, 3], [0, 480, 0], [60, 620, 0], [220, 700, 0], [330, 640, 0], [300, 520, 0], [420, 450, 0], [480, 300, 0], [400, 140, 0], [260, 40, 0], [130, 0, 0], [0, 0, 0], [-150, 0, 0], [-300, -50, 0], [-420, -200, 0], [-460, -400, 0], [-400, -580, 0], [-240, -680, 0], [-90, -660, 0]],
+      jumps: [[16.5, 3]], boosts: [0.02, 5.5, 10.5, 18.5], items: [3.5, 9.5, 15.5, 20.2],
+    },
+    {
+      id: 'skyway', name: '구름 위 하이웨이', theme: 'sky', diff: 3, w: 20, desc: '구름 위에 떠 있는 고속도로. 끊어진 다리는 부스터 받고 뛰어넘기',
+      ctrl: [[0, -500, 18], [0, -150, 18], [0, 200, 22], [80, 450, 26], [300, 560, 30], [520, 520, 32], [640, 380, 32], [760, 250, 30], [960, 280, 28], [1080, 420, 30], [1060, 640, 32], [900, 780, 34], [660, 830, 36], [420, 900, 36], [160, 980, 34], [-100, 920, 32], [-260, 740, 30], [-250, 520, 28], [-360, 320, 26], [-430, 80, 24], [-380, -160, 22], [-280, -400, 20], [-170, -600, 18], [-50, -650, 18]],
+      gaps: [[1.6, 18, 3], [12.5, 22, 3], [18.5, 20, 3]], boosts: [8.3, 15.3], items: [2.6, 6.5, 10.5, 16, 21],
+    },
+    {
+      id: 'factory', name: '기계 공장', theme: 'factory', diff: 4, w: 14, desc: '좁은 공장 통로에 밀어내는 블록, 내려찍는 프레스, 회전 막대가 가득',
+      ctrl: [[0, -300, 0], [0, 100, 0], [10, 170, 0], [60, 200, 0], [260, 200, 0], [310, 215, 0], [330, 270, 0], [330, 420, 0], [350, 470, 0], [400, 490, 0], [560, 490, 0], [610, 470, 0], [630, 420, 0], [630, 140, 0], [615, 95, 1], [560, 70, 4], [380, 60, 11], [150, 60, 13, 16], [0, 60, 13, 16], [-140, 60, 12], [-230, 40, 7], [-260, -20, 3], [-260, -200, 0], [-250, -420, 0], [-220, -480, 0], [-160, -500, 0], [-60, -500, 0], [-15, -470, 0], [0, -420, 0]],
+      movers: [{ k: 'slide', f: 4.5, period: 2.6 }, { k: 'crush', f: 7.5, period: 3.2 }, { k: 'slide', f: 10.5, period: 2.2, phase: 0.3 }, { k: 'spin', f: 13.3, period: 4 }, { k: 'crush', f: 22.5, period: 2.8, phase: 0.5 }, { k: 'slide', f: 22.9, period: 2.4 }],
+      posts: [[0.04, 5]], patches: [[9.0, 'oil', 30], [25.5, 'oil', 30]], boosts: [16.5], items: [3.3, 12.3, 19.5, 27.5],
+    },
+    {
+      id: 'tomb', name: '피라미드 유적', theme: 'tomb', diff: 3, w: 18, desc: '오르락내리락 모래 언덕과 무너진 다리. 언덕 꼭대기에서 붕 뜬다',
+      ctrl: [[0, -450, 0], [0, -100, 0], [0, 150, 6], [40, 350, 12], [180, 460, 6], [360, 440, 0], [480, 320, 0], [520, 140, 8], [640, 40, 14], [820, 60, 12], [920, 200, 0], [1000, 380, 0], [900, 560, 6], [700, 620, 12], [500, 700, 6], [300, 760, 0], [100, 700, 0], [-80, 600, 6], [-220, 440, 12], [-300, 240, 6], [-280, 40, 0], [-200, -200, 0], [-160, -420, 0], [-90, -560, 0], [-20, -560, 0]],
+      gaps: [[8.45, 18, 3]], posts: [[15.3, 6]], patches: [[21.2, 'mud', 40]], boosts: [4.6, 19.5], items: [2.5, 6.5, 12.5, 17.5, 22.5],
+    },
+    {
+      id: 'canyonjump', name: '협곡 대점프', theme: 'canyon', diff: 4, w: 18, desc: '끊어진 협곡 다리를 세 번 뛰어넘는 점프 코스. 부스터를 놓치면 추락!',
+      ctrl: [[0, -400, 0], [0, -50, 0], [0, 200, 8], [50, 380, 14], [200, 470, 14], [380, 440, 14], [480, 300, 10], [600, 220, 4], [760, 240, 0], [860, 380, 0], [820, 560, 6], [680, 660, 12], [480, 700, 14], [280, 760, 14], [120, 860, 10], [-60, 860, 4], [-200, 760, 0], [-260, 580, 0], [-200, 400, 6], [-260, 200, 12], [-300, 0, 12], [-260, -200, 6], [-200, -380, 0], [-120, -520, 0], [-30, -520, 0]],
+      gaps: [[4.45, 22, 3], [12.5, 24, 3.2], [19.5, 22, 3]], jumps: [[8.6, 3.5]], boosts: [16.6], items: [2.5, 7.5, 10.4, 17.6, 22.5],
+    },
+    {
+      id: 'icecastle', name: '얼음 성 미로', theme: 'snow', diff: 5, w: 13, desc: '빙판 위 좁은 지그재그 헤어핀. 미는 블록까지! 드리프트 장인 전용',
+      ctrl: [[0, -300], [0, 0], [0, 110], [20, 150], [60, 150], [80, 110], [80, -50], [100, -90], [140, -90], [160, -50], [160, 110], [180, 150], [220, 150], [240, 110], [240, -50], [260, -90], [300, -90], [320, -50], [320, 200], [290, 270], [200, 300], [100, 300], [40, 340], [30, 420], [90, 470], [280, 470], [430, 430], [490, 330], [490, -200], [450, -300], [340, -340], [180, -340], [70, -390], [15, -380]],
+      movers: [{ k: 'slide', f: 6.5, period: 2.4 }, { k: 'slide', f: 14.5, period: 2.0, phase: 0.4 }, { k: 'spin', f: 28.3, period: 3.6 }, { k: 'slide', f: 30.6, period: 2.2 }],
+      posts: [[25.3, 6]], boosts: [18.5], items: [9.5, 17.5, 26.5, 31.5],
+    },
+    {
+      id: 'neonclover', name: '네온 클로버 인터체인지', theme: 'night', diff: 3, w: 16, desc: '빙글 돌아 올라가 자기 길 위를 건너는 고가 교차로',
+      ctrl: [[0, -500, 0], [0, -200, 0], [0, 0, 0], [0, 120, 0], [23, 177, 2], [80, 200, 4], [137, 177, 6], [160, 120, 8], [137, 63, 10], [80, 40, 12], [0, 40, 13], [-100, 40, 12], [-200, 40, 8], [-320, 120, 6], [-380, 300, 4], [-300, 480, 8], [-120, 560, 14], [60, 600, 14], [240, 560, 10], [360, 440, 6], [420, 260, 2], [400, 60, 0], [360, -120, 0], [300, -300, 0], [200, -460, 0], [60, -600, 0]],
+      jumps: [[22.5, 3]], boosts: [1.5, 17.2], posts: [[23.4, 5]], items: [2.5, 11.5, 16.5, 21.5, 24.5],
+    },
+    {
+      id: 'junglefalls', name: '정글 폭포 점프', theme: 'jungle', diff: 4, w: 15, desc: '진흙탕과 좁은 흙길, 폭포 위 끊어진 나무다리를 건너는 모험',
+      ctrl: [[0, -400, 0], [0, -50, 0], [-20, 120, 0], [-100, 220, 4], [-120, 360, 10], [-40, 480, 10], [100, 500, 10], [220, 440, 6], [260, 300, 0], [360, 200, 0], [500, 240, 0], [560, 380, 0], [680, 440, 6], [820, 400, 10], [880, 260, 10], [840, 100, 6], [720, 20, 0], [600, -80, 0], [560, -240, 0], [440, -320, 0], [300, -280, 0], [200, -380, 0], [120, -540, 0], [30, -560, 0], [0, -480, 0]],
+      gaps: [[5.7, 20, 3]], posts: [[13.6, 5]], patches: [[9.2, 'mud', 50], [17.3, 'mud', 45], [21.3, 'mud', 30]], movers: [{ k: 'spin', f: 19.5, period: 4.5 }], boosts: [11.5], items: [2.5, 8.5, 12.4, 16.5, 22.2],
+    },
+    {
+      id: 'lavahell', name: '용암 지옥 다리', theme: 'volcano', diff: 5, w: 13, desc: '용암 위 좁은 다리. 끊어진 곳 세 군데, 프레스와 회전 막대까지. 진짜 지옥',
+      ctrl: [[0, -400, 0], [0, -100, 0], [0, 100, 6], [40, 260, 12], [160, 340, 14], [320, 340, 14], [440, 260, 12], [480, 120, 8], [580, 40, 8], [720, 60, 10], [800, 180, 12], [780, 340, 14], [680, 460, 14], [520, 520, 12], [360, 580, 10], [200, 640, 10], [40, 620, 8], [-80, 520, 8], [-160, 380, 10], [-200, 200, 12], [-220, 0, 12], [-200, -200, 8], [-150, -380, 4], [-80, -500, 0], [-20, -490, 0]],
+      gaps: [[4.5, 20, 3], [12.5, 22, 3], [19.5, 22, 3]], movers: [{ k: 'spin', f: 8.5, period: 3.4 }, { k: 'crush', f: 15.4, period: 2.8 }, { k: 'slide', f: 17.2, period: 2.0 }, { k: 'crush', f: 21.2, period: 2.6, phase: 0.25 }],
+      patches: [[10.2, 'oil', 30]], boosts: [], items: [2.4, 7.2, 14.2, 18.4, 22.6],
+    },
+    {
+      id: 'beachcoaster', name: '해변 롤러코스터', theme: 'beach', diff: 2, w: 22, desc: '넓은 해변길이 롤러코스터처럼 오르내린다. 언덕마다 붕붕',
+      ctrl: [[0, -600, 0], [0, -200, 0], [0, 200, 6], [30, 500, 0], [150, 700, 8], [400, 760, 0], [650, 700, 6], [800, 520, 0], [820, 300, 8], [760, 80, 0], [820, -140, 6], [940, -300, 0], [900, -520, 6], [740, -660, 0], [520, -700, 6], [300, -760, 0], [120, -820, 0], [20, -760, 0]],
+      jumps: [[2.6, 3], [9.4, 3], [14.5, 3]], boosts: [0.03, 5.4, 11.5], items: [1.5, 4.5, 7.5, 10.5, 13.4, 16.2],
+    },
+    {
+      id: 'autumnpass', name: '단풍 대협곡 고개', theme: 'autumn', diff: 4, w: 15, desc: '지그재그로 40m를 올라갔다가 내려오며 처음 길 위를 다리로 건넌다',
+      ctrl: [[0, -500, 0], [0, -150, 0], [20, 50, 4], [120, 120, 8], [300, 120, 12], [380, 190, 14], [320, 270, 16], [120, 280, 18], [60, 350, 20], [120, 420, 22], [320, 420, 24], [420, 480, 26], [400, 580, 28], [240, 640, 30], [60, 640, 32], [-80, 600, 34], [-200, 520, 36], [-260, 380, 36], [-240, 200, 32], [-180, 40, 26], [-100, -60, 20], [0, -100, 16], [120, -160, 12], [260, -260, 8], [280, -420, 4], [200, -560, 0], [80, -640, 0], [10, -600, 0]],
+      posts: [[14.4, 5]], patches: [[17.5, 'mud', 30]], boosts: [0.03, 23.5], items: [2.5, 7.4, 12.5, 18.5, 24.5],
+    },
+    {
+      id: 'rainbowsky', name: '무지개 하늘 미로', theme: 'rainbow', diff: 5, w: 14, desc: '하늘 높이 뜬 좁은 무지개 길. 낭떠러지 세 개와 회전 막대, 자기 길 위를 넘는 다리',
+      ctrl: [[0, -450, 25], [0, -150, 25], [0, 100, 28], [60, 280, 32], [200, 340, 34], [340, 300, 36], [400, 160, 38], [340, 40, 40], [200, 20, 42], [120, -40, 44], [0, -60, 44], [-140, -60, 42], [-260, 0, 40], [-320, 160, 38], [-300, 340, 36], [-200, 480, 34], [-20, 560, 32], [180, 600, 30], [380, 560, 30], [520, 440, 30], [560, 260, 30], [540, 60, 30], [480, -120, 28], [380, -280, 26], [240, -420, 25], [120, -560, 25], [30, -560, 25]],
+      gaps: [[4.3, 20, 3], [15.5, 22, 3], [20.6, 22, 3]], movers: [{ k: 'spin', f: 8.4, period: 3.2 }, { k: 'slide', f: 13.2, period: 2.2 }, { k: 'spin', f: 18.4, period: 3 }, { k: 'slide', f: 22.6, period: 2.0 }],
+      posts: [[11.3, 5]], boosts: [], items: [2.5, 6.5, 12.3, 17.3, 23.5],
+    },
+    /*NEW_ARENAS_END*/
   ];
+  // 난이도 1 입문 · 2 쉬움 · 3 보통 · 4 어려움 · 5 지옥
+  const DIFF_OLD = { kgp: 2, desert: 2, ice: 3, neon: 2, beach: 1, canyon: 2, autumn: 3, volcano: 2, port: 2, rainbow: 2, jungle: 3, dusk: 1 };
+  let arenaCursor = 29500;
   const arenas = ARENA_DEFS.map((d, k) => {
-    const ox = 5000 + k * 2000, oz = 0;
-    const t = makeTrack(d.id, d.name, catmullClosed(d.ctrl.map(([x, z]) => [x + ox, z + oz]), 16), d.w, 16, true, 5);
-    const n = t.path.length, nCp = Math.max(12, Math.round(t.length / 150));
-    t.cps = [];
-    for (let i = 0; i < nCp; i++) t.cps.push(Math.round(i * n / nCp) % n);
-    Object.assign(t, { arena: true, theme: d.theme, desc: d.desc, ox, oz, wb: d.w / 2 + 3, itemBoxes: [], boostSpecs: [], barriers: [] });
-    const at = f => { const i = Math.floor(f * n) % n; return { p: t.path[i], tg: t.tan[i] }; };
-    for (const [f, h] of d.jumps) {
-      const { p, tg } = at(f), rot = Math.atan2(tg[0], tg[1]);
-      ramps.push({ cx: p[0], cz: p[1], rot, len: 14, w: d.w - 1, h, fx: Math.sin(rot), fz: Math.cos(rot) });
+    // 컨트롤 포인트: [x, z, 높이, 폭] (높이·폭 생략 시 0, d.w)
+    const ctrl = d.ctrl.map(c => [c[0], c[1], c[2] ?? 0, c[3] ?? d.w]);
+    let ox;
+    if (k < 12) ox = 5000 + k * 2000;
+    else {
+      const xs = ctrl.map(c => c[0]), mn = Math.min(...xs), mx = Math.max(...xs);
+      ox = arenaCursor - mn + 700; arenaCursor = ox + mx + 700;
     }
-    for (const f of d.boosts) { const { p, tg } = at(f); t.boostSpecs.push({ cx: p[0], cz: p[1], rot: Math.atan2(tg[0], tg[1]), len: 10, w: 8 }); }
-    for (const f of d.items) {
-      const { p, tg } = at(f);
-      for (const o of [-0.34, -0.17, 0, 0.17, 0.34]) t.itemBoxes.push({ x: p[0] + tg[1] * o * d.w, z: p[1] - tg[0] * o * d.w });
+    const oz = 0;
+    const raw = catmullClosed(ctrl.map(c => [c[0] + ox, c[1] + oz, c[2], c[3]]), 16);
+    const t = makeTrack(d.id, d.name, raw, d.w, 16, true, 5);
+    const n = t.path.length, step = t.length / n;
+    // 위치 지정: 1 미만 = 전체 길이 비율, 1 이상 = 컨트롤 포인트 번호 (5.5 = 5번과 6번 사이)
+    const rawCum = [0];
+    for (let i = 0; i < raw.length; i++) { const q1 = raw[i], q2 = raw[(i + 1) % raw.length]; rawCum.push(rawCum[i] + Math.hypot(q2[0] - q1[0], q2[1] - q1[1])); }
+    const toFrac = v => v >= 1 ? rawCum[Math.round(v * 16) % raw.length] / rawCum[raw.length] : v;
+    t.ey = t.ext.map(e => Math.max(0, e[0]));
+    t.hw = t.ext.map(e => Math.max(5, e[1] / 2));
+    t.wbs = t.hw.map(h => h + 3);
+    delete t.ext;
+    t.elev = t.ey.some(e => e > 0.5);
+    Object.assign(t, {
+      arena: true, theme: d.theme, desc: d.desc, diff: d.diff || DIFF_OLD[d.id] || 3, ox, oz, wb: d.w / 2 + 3,
+      itemBoxes: [], boostSpecs: [], barriers: [], gap: new Array(n).fill(false), patch: null, movers: [], posts: [], rampIdx: [],
+    });
+    const fi = v => { const f = toFrac(v); return Math.floor((((f % 1) + 1) % 1) * n) % n; };
+    const at = i => { i = ((i % n) + n) % n; const p = t.path[i], tg = t.tan[i]; return { i, p, tg, e: t.ey[i], hw: t.hw[i], rot: Math.atan2(tg[0], tg[1]) }; };
+    const addRamp = (i, h) => {
+      const q = at(i);
+      ramps.push({ cx: q.p[0], cz: q.p[1], rot: q.rot, len: 14, w: q.hw * 2 - 1, h, y0: q.e, fx: Math.sin(q.rot), fz: Math.cos(q.rot) });
+      t.rampIdx.push(q.i);
+    };
+    const addBoost = i => { const q = at(i); t.boostSpecs.push({ cx: q.p[0], cz: q.p[1], y: q.e, rot: q.rot, len: 10, w: Math.min(8, q.hw * 2 - 2) }); };
+    for (const [f, h] of d.jumps || []) addRamp(fi(f), h);
+    for (const f of d.boosts || []) addBoost(fi(f));
+    // 낭떠러지: [위치, 길이m, 점프대 높이]. 앞에 부스터 + 점프대가 자동으로 붙는다
+    for (const [f, len, h] of d.gaps || []) {
+      const i0 = fi(f), cnt = Math.round(len / step);
+      for (let k2 = 0; k2 < cnt; k2++) t.gap[(i0 + k2) % n] = true;
+      addRamp(i0 - 2, h || 3);
+      addBoost(i0 - 10);
     }
-    // 코스 양옆 벽 (선분 충돌체)
+    // 노면 (oil 기름 = 미끄러움, mud 진흙 = 느림): [위치, 종류, 길이m]
+    if (d.patches) {
+      t.patch = new Array(n).fill(null);
+      for (const [f, kind, len] of d.patches) { const i0 = fi(f); for (let k2 = 0; k2 < Math.round(len / step); k2++) t.patch[(i0 + k2) % n] = kind; }
+    }
+    // 움직이는 장애물: slide 좌우로 미는 블록, spin 회전 막대, crush 위아래로 찍는 블록
+    for (const m of d.movers || []) {
+      const q = at(fi(m.f));
+      t.movers.push({ k: m.k, i: q.i, x: q.p[0], z: q.p[1], e: q.e, tx: q.tg[0], tz: q.tg[1], hw: q.hw, period: m.period || 3, phase: m.phase || 0 });
+    }
+    // 고정 장애물: [위치, 개수] → 좌우 번갈아 세운 기둥 (슬라럼)
+    for (const [f, cnt] of d.posts || []) {
+      const i0 = fi(f);
+      for (let k2 = 0; k2 < cnt; k2++) {
+        const q = at(i0 + k2 * 3), side = (k2 % 2 ? 1 : -1) * q.hw * 0.42;
+        t.posts.push({ x: q.p[0] + q.tg[1] * side, z: q.p[1] - q.tg[0] * side, e: q.e, r: 1.3, i: q.i });
+      }
+    }
+    for (const f of d.items || []) {
+      const q = at(fi(f));
+      for (const o of [-0.68, -0.34, 0, 0.34, 0.68]) t.itemBoxes.push({ x: q.p[0] + q.tg[1] * o * q.hw, z: q.p[1] - q.tg[0] * o * q.hw, y: q.e });
+    }
+    // 코스 양옆 벽 (선분 충돌체, 마지막 값 = 높이)
     for (let i = 0; i < n; i++) {
-      const a = t.path[i], b = t.path[(i + 1) % n], ta = t.tan[i], tb = t.tan[(i + 1) % n];
-      for (const s of [1, -1]) t.barriers.push([a[0] + ta[1] * s * t.wb, a[1] - ta[0] * s * t.wb, b[0] + tb[1] * s * t.wb, b[1] - tb[0] * s * t.wb, -s * ta[1], s * ta[0]]);
+      const i2 = (i + 1) % n, a = t.path[i], b = t.path[i2], ta = t.tan[i], tb = t.tan[i2], wa = t.wbs[i], wb = t.wbs[i2];
+      const e = (t.ey[i] + t.ey[i2]) / 2;
+      for (const sd of [1, -1]) t.barriers.push([a[0] + ta[1] * sd * wa, a[1] - ta[0] * sd * wa, b[0] + tb[1] * sd * wb, b[1] - tb[0] * sd * wb, -sd * ta[1], sd * ta[0], e]);
     }
     let x1 = Infinity, x2 = -Infinity, z1 = Infinity, z2 = -Infinity;
-    for (const p of t.path) { x1 = Math.min(x1, p[0]); x2 = Math.max(x2, p[0]); z1 = Math.min(z1, p[1]); z2 = Math.max(z2, p[1]); }
+    for (const q of t.path) { x1 = Math.min(x1, q[0]); x2 = Math.max(x2, q[0]); z1 = Math.min(z1, q[1]); z2 = Math.max(z2, q[1]); }
     t.bounds = { x1, x2, z1, z2 };
     return t;
   });
-  function arenaAt(x) { return x > 3500 ? arenas[Math.round((x - 5300) / 2000)] || null : null; }
+  // x 좌표로 어느 경기장인지 (경기장끼리는 x 방향으로 떨어져 있음)
+  let lastArena = null;
+  function arenaAt(x) {
+    if (x <= 3500) return null;
+    if (lastArena && x >= lastArena.bounds.x1 - 600 && x <= lastArena.bounds.x2 + 600) return lastArena;
+    let best = null, bd = 900;
+    for (const a of arenas) {
+      const d = x < a.bounds.x1 ? a.bounds.x1 - x : (x > a.bounds.x2 ? x - a.bounds.x2 : 0);
+      if (d < bd) { bd = d; best = a; }
+    }
+    if (best) lastArena = best;
+    return best;
+  }
 
   const trackById = {};
   for (const t of [...tracks, ...arenas]) trackById[t.id] = t;
@@ -249,6 +381,52 @@
     });
   }
   function cellKey(cx, cz) { return cx * 100003 + cz; }
+
+  // 경기장 마무리: 다른 층과 겹치는 곳(교차로) 표시, 체크포인트는 교차로/낭떠러지/점프대를 피해서 배치
+  for (const t of arenas) {
+    const n = t.path.length;
+    t.cross = new Array(n).fill(false);
+    t.path.forEach((p, i) => {
+      const cx = Math.floor(p[0] / CELL), cz = Math.floor(p[1] / CELL);
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const j of t.grid.get(cellKey(cx + a, cz + b)) || []) {
+        const di = Math.abs(i - j), dd = Math.min(di, n - di);
+        if (dd > 12 && Math.hypot(t.path[j][0] - p[0], t.path[j][1] - p[1]) < t.wbs[i] + t.wbs[j] + 8) t.cross[i] = true;
+      }
+    });
+    // 낭떠러지 바로 앞(부스터보다 뒤)에서 다시 시작하면 또 떨어지니 앞쪽 24칸 안에 낭떠러지가 있으면 피함
+    const gapAhead = i => { for (let k = 0; k < 24; k++) if (t.gap[(i + k) % n]) return true; return false; };
+    t.gapAhead = gapAhead;
+    const bad = i => gapAhead(i) || t.cross[i] || t.rampIdx.some(r => Math.abs(r - i) < 5) || t.movers.some(m => Math.abs(m.i - i) < 5);
+    const nCp = Math.max(12, Math.round(t.length / 150));
+    t.cps = [0];
+    for (let k = 1; k < nCp; k++) {
+      let idx = Math.round(k * n / nCp) % n;
+      for (let g = 0; g < 80 && bad(idx); g++) idx = (idx + 1) % n;
+      if (idx > t.cps[t.cps.length - 1]) t.cps.push(idx);
+    }
+  }
+
+  // 경기장 위 한 지점의 노면 찾기. y 를 주면 그 높이(+2.5m) 아래에서 가장 높은 층을 고른다 (다리 위/아래 구분)
+  function trackAt(t, x, z, y) {
+    const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL), n = t.path.length;
+    let best = null, bs = Infinity;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const arr = t.grid.get(cellKey(cx + i, cz + j));
+      if (!arr) continue;
+      for (const k of arr) {
+        const a = t.path[k], k2 = (k + 1) % n, b = t.path[k2];
+        const dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1;
+        const u = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2));
+        const d = Math.hypot(x - a[0] - dx * u, z - a[1] - dz * u);
+        if (d > t.wbs[k] + 1.5) continue;
+        const e = t.ey[k] + (t.ey[k2] - t.ey[k]) * u;
+        let sc = d;
+        if (y !== undefined) { if (e > y + 2.5) continue; sc = d - e * 100; }
+        if (sc < bs) { bs = sc; best = { i: k, u, d, e, hw: t.hw[k], gap: t.gap[k] }; }
+      }
+    }
+    return best;
+  }
 
   function nearestOnTrack(t, x, z, maxCells) {
     const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL), m = maxCells || 1;
@@ -275,7 +453,7 @@
     const back = 10 + row * 9 + (k % 2) * 3;
     const idx = ((-Math.round(back / step)) % n + n) % n;
     const p = t.path[idx], tg = t.tan[idx];
-    return { x: p[0] + tg[1] * side, z: p[1] - tg[0] * side, yaw: Math.atan2(tg[0], tg[1]) };
+    return { x: p[0] + tg[1] * side, z: p[1] - tg[0] * side, yaw: Math.atan2(tg[0], tg[1]), y: t.ey ? t.ey[idx] : 0 };
   }
 
   /* ---------- 부스터 패드 ---------- */
@@ -294,13 +472,18 @@
   }
 
   /* ---------- 지형 높이 ---------- */
-  function groundHeight(x, z) {
+  // y: 차 높이 (주면 다리 위/아래를 구분)
+  function groundHeight(x, z, y) {
     let h = 0;
+    const ar = x > 3500 ? arenaAt(x) : null;
+    if (ar) { const s = trackAt(ar, x, z, y); if (s) h = s.gap ? -60 : s.e; }
     for (const r of ramps) {
       const dx = x - r.cx, dz = z - r.cz;
       const u = dx * r.fx + dz * r.fz, v = dx * r.fz - dz * r.fx;
       if (u >= -r.len / 2 && u <= r.len / 2 && v >= -r.w / 2 && v <= r.w / 2) {
-        const hh = r.h * (u + r.len / 2) / r.len;
+        const y0 = r.y0 || 0;
+        if (y !== undefined && y0 > y + 2.5) continue;
+        const hh = y0 + r.h * (u + r.len / 2) / r.len;
         if (hh > h) h = hh;
       }
     }
@@ -310,8 +493,9 @@
     return h;
   }
 
-  function boostAt(x, z) {
+  function boostAt(x, z, y) {
     for (const b of boosts) {
+      if (b.y !== undefined && y !== undefined && Math.abs(y - b.y) > 3) continue;
       const dx = x - b.cx, dz = z - b.cz;
       const u = dx * b.fx + dz * b.fz, v = dx * b.fz - dz * b.fx;
       if (Math.abs(u) <= b.len / 2 && Math.abs(v) <= b.w / 2) return b;
@@ -330,9 +514,14 @@
   function inCity(x, z, m) { m = m || 0; return x > CITY.x1 - m && x < CITY.x2 + m && z > CITY.z1 - m && z < CITY.z2 + m; }
 
   // 노면: 'road' | 'dirt' | 'grass' | 'walk'
-  function surfaceAt(x, z) {
+  function surfaceAt(x, z, y) {
     const ar = arenaAt(x);
-    if (ar) { const n = nearestOnTrack(ar, x, z, 1); return n.d <= ar.w / 2 + 0.6 ? (ar.theme === 'snow' ? 'ice' : 'road') : 'runoff'; }
+    if (ar) {
+      const s = trackAt(ar, x, z, y);
+      if (!s) return 'runoff';
+      if (ar.patch && ar.patch[s.i] && s.d <= s.hw) return ar.patch[s.i];
+      return s.d <= s.hw + 0.6 ? (ar.theme === 'snow' ? 'ice' : 'road') : 'runoff';
+    }
     if (inPark(x, z)) return 'dirt';
     for (const p of pads) if (x > p.x1 && x < p.x2 && z > p.z1 && z < p.z2) return 'road';
     for (const s of roads) if (distSeg(x, z, s) <= s.w / 2) return 'road';
@@ -572,10 +761,11 @@
   }
   for (const b of buildings) addCol({ box: b }, b.x1, b.z1, b.x2, b.z2);
   for (const t of trees) { const r = 1.1 * t.s; addCol({ circ: t, r }, t.x - r, t.z - r, t.x + r, t.z + r); }
+  for (const a of arenas) for (const q of a.posts) addCol({ circ: q, r: q.r, e: q.e }, q.x - q.r, q.z - q.r, q.x + q.r, q.z + q.r);
   for (const a of arenas) for (const sg of a.barriers) addCol({ seg: sg }, Math.min(sg[0], sg[2]), Math.min(sg[1], sg[3]), Math.max(sg[0], sg[2]), Math.max(sg[1], sg[3]));
 
   // 원형 몸체(x,z,r) 충돌 해결. vel = {x,z} 수정. 충격량 반환
-  function collide(pos, r, vel) {
+  function collide(pos, r, vel, y) {
     let hit = 0;
     const seen = new Set();
     const cx = Math.floor(pos.x / CELL), cz = Math.floor(pos.z / CELL);
@@ -597,7 +787,8 @@
           } else { nx = dx / d; nz = dz / d; pen = r - d; }
         } else if (o.seg) {
           // 코스 벽: 항상 코스 안쪽으로 밀어냄 (빠르게 뚫고 나가도 되돌림)
-          const [x1, z1, x2, z2, inx, inz] = o.seg;
+          const [x1, z1, x2, z2, inx, inz, se] = o.seg;
+          if (y !== undefined && se !== undefined && (y > se + 5 || y < se - 4)) continue;
           const dx = x2 - x1, dz = z2 - z1, l2 = dx * dx + dz * dz;
           const tt = ((pos.x - x1) * dx + (pos.z - z1) * dz) / l2;
           if (tt < -0.05 || tt > 1.05) continue;
@@ -605,6 +796,7 @@
           if (sd >= r || sd < -4) continue;
           nx = inx; nz = inz; pen = r - sd;
         } else {
+          if (y !== undefined && o.e !== undefined && Math.abs(y - o.e) > 5) continue;
           const t = o.circ, rr = r + o.r;
           const dx = pos.x - t.x, dz = pos.z - t.z, d = Math.hypot(dx, dz);
           if (d >= rr || d < 1e-4) continue;
@@ -630,9 +822,14 @@
     return { x: -60 + (k % 2 ? 4 : -4), z: -40 + Math.floor(k / 2) * 10, yaw: 0 };
   }
   // 가장 가까운 도로/트랙 위 지점
-  function respawnPoint(x, z) {
+  function respawnPoint(x, z, y) {
     const ar = arenaAt(x);
-    if (ar) { const n = nearestOnTrack(ar, x, z, 2), p = ar.path[n.i], tg = ar.tan[n.i]; return { x: p[0], z: p[1], yaw: Math.atan2(tg[0], tg[1]) }; }
+    if (ar) {
+      let i = (trackAt(ar, x, z, y) || nearestOnTrack(ar, x, z, 2)).i;
+      for (let g = 0; g < 80 && (ar.gapAhead(i) || ar.movers.some(m => Math.abs(m.i - i) < 4)); g++) i = (i - 1 + ar.path.length) % ar.path.length;
+      const p = ar.path[i], tg = ar.tan[i];
+      return { x: p[0], z: p[1], yaw: Math.atan2(tg[0], tg[1]), y: ar.ey[i] };
+    }
     let best = null, bd = Infinity;
     for (const s of roads) {
       const dx = s.x2 - s.x1, dz = s.z2 - s.z1, l2 = dx * dx + dz * dz;
@@ -833,7 +1030,7 @@
   const W = {
     HALF, INNER, SEA_X, CITY, PARK, roads, ramps, platforms, boosts, tracks, trackById, buildings, trees, cityParks, lots, coins, lamps, canopies, pads, arenas, arenaAt,
     CARS, carById, COLORS, colorHex, validColor,
-    groundHeight, surfaceAt, boostAt, collide, nearestOnTrack, gridSlot, spawnPoint, respawnPoint, inPark, inCity, rng,
+    groundHeight, surfaceAt, boostAt, collide, nearestOnTrack, trackAt, gridSlot, spawnPoint, respawnPoint, inPark, inCity, rng,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = W;
   else root.WORLD = W;

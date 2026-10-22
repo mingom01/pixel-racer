@@ -38,6 +38,9 @@ const THEMES = {
   rainbow: { sky: 0x140c38, fog: 0x1e1250, near: 130, far: 620, hemi: [0xa090ff, 0x201040, 0.75], sun: [0xc0b0ff, 0.8], bar: [0xff5aa8, 0x5ae8ff], deco: 'star', glow: true },
   jungle: { sky: 0x8ac8a0, fog: 0x9ad0a8, near: 140, far: 600, hemi: [0xe0ffe0, 0x3a5a2a, 1.1], sun: [0xfff0c0, 1.7], bar: [0x3aa64a, 0xf2c230], deco: 'jungle' },
   dusk: { sky: 0xf0a080, fog: 0xe8a888, near: 220, far: 850, hemi: [0xffd0c0, 0x5a5040, 1.0], sun: [0xffa070, 1.7], bar: [0xd83a3a, 0xf2f2f2], deco: 'tree' },
+  sky: { sky: 0x8ccaff, fog: 0xd8ecff, near: 240, far: 900, hemi: [0xffffff, 0xb8d0f0, 1.25], sun: [0xfff8e8, 1.8], bar: [0xffffff, 0x3ab8ff], deco: 'cloud', deck: 'TX.cloudDeck' },
+  factory: { sky: 0x5a5662, fog: 0x6a6470, near: 150, far: 650, hemi: [0xffe0c0, 0x3a3436, 0.95], sun: [0xffc890, 1.5], bar: [0xf2c230, 0x2a2a2e], deco: 'chimney', deck: 'TX.metal2' },
+  tomb: { sky: 0xf2d8a0, fog: 0xe8c890, near: 200, far: 800, hemi: [0xfff0d0, 0xa08050, 1.15], sun: [0xffe0a8, 2.0], bar: [0xc89a5a, 0x6a4a2a], deco: 'pyramid', deck: 'TX.sandstone' },
 };
 // 테마별 바닥 / 코스 밖 / 노면 텍스처 이름 (T.xxx 또는 TX.xxx), 미니맵 바탕색
 const GROUND = {
@@ -47,6 +50,8 @@ const GROUND = {
   autumn: ['TX.leaf', 'TX.gravel', 'T.roadTrack', '#8a7a34'], volcano: ['TX.basalt', 'TX.lava', 'T.roadTrack', '#2a1a18'],
   port: ['T.concrete', 'TX.gravel', 'T.roadTrack', '#8a8c90'], rainbow: ['TX.space', 'TX.space', 'TX.rainbowRoad', '#1a1040'],
   jungle: ['TX.jungle', 'TX.mud', 'TX.dirtRoad', '#2e6a2a'], dusk: ['T.grass', 'TX.gravel', 'T.roadTrack', '#5a7a30'],
+  sky: ['TX.cloud', 'TX.cloudDeck', 'T.roadTrack', '#cfe6ff'], factory: ['TX.metal', 'TX.metal2', 'T.roadTrack', '#4a4a52'],
+  tomb: ['TX.sand', 'TX.sandstone', 'TX.stoneRoad', '#d8b070'],
 };
 const texOf = name => { const [o, k] = name.split('.'); return (o === 'T' ? X.T : TX)[k]; };
 let defTheme = null;
@@ -101,6 +106,17 @@ function makeTex() {
       return y % 8 === 0 ? '#ffffff' : band;
     })),
     jungle: tex(canvasOf(16, 16, () => pick(['#2e6a2a', '#346e2e', '#285e24', '#3a7a32', '#24561e']))),
+    cloud: tex(canvasOf(16, 16, (x, y) => ((x * 5 + y * 7) % 13 < 2) ? '#c8dcf4' : pick(['#ffffff', '#f4f8ff', '#eef4ff', '#e4eefc']))),
+    cloudDeck: tex(canvasOf(16, 16, (x, y) => (y % 8 === 0) ? '#a8c0dc' : pick(['#e8f0fa', '#dce8f6', '#f0f6ff']))),
+    metal: tex(canvasOf(16, 16, (x, y) => (x % 8 === 0 || y % 8 === 0) ? '#2e2e34' : ((x + y) % 5 === 0 ? '#5e6068' : pick(['#4a4c54', '#46484f', '#4e5058'])))),
+    metal2: tex(canvasOf(16, 16, (x, y) => (x + y) % 4 < 2 ? '#6a6c74' : '#5a5c64')),
+    sandstone: tex(canvasOf(16, 16, (x, y) => (y % 4 === 0 || (x + (y >> 2) * 4) % 8 === 0) ? '#a07840' : pick(['#d8b878', '#d0b070', '#dcc084']))),
+    stoneRoad: tex(canvasOf(44, 16, (x, y) => {
+      if (x === 1 || x === 42) return '#f2e6c8';
+      if (y % 8 === 0 || (x + (y >> 3) * 5) % 10 === 0) return '#8a7050';
+      return pick(['#b89a6a', '#b0925f', '#c0a274']);
+    })),
+    oil: tex(canvasOf(16, 16, (x, y) => ((x * 3 + y * 5) % 11 === 0) ? '#5a4a7a' : pick(['#16161c', '#1c1a24', '#121218', '#201c2a']))),
     mud: tex(canvasOf(16, 16, () => pick(['#6a4a2a', '#5e4224', '#74522e', '#563c20']))),
     dirtRoad: tex(canvasOf(44, 16, (x, y) => {
       if ((x === 12 || x === 13 || x === 30 || x === 31) && y % 3 !== 0) return '#7a5a34';
@@ -138,7 +154,7 @@ function buildArena(a) {
   g.visible = false;
   X.scene.add(g);
   const add = (geo, mat, shadow) => { const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; if (shadow) m.castShadow = true; g.add(m); return m; };
-  const b = a.bounds, M = 320;
+  const b = a.bounds, M = 320, n = a.path.length;
   const [ground, runoff, road] = GROUND[a.theme].slice(0, 3).map(texOf);
   // 해변: 동쪽은 바다 / 항구: 서쪽은 바다 / 화산: 용암 호수
   if (a.theme === 'beach') add(flatQuad(b.x2 + 70, b.z1 - M, b.x2 + M + 400, b.z2 + M, 0.08, 4), lam({ map: T.water, emissive: 0x0a2a4a }));
@@ -147,25 +163,66 @@ function buildArena(a) {
     const cx = b.x1 + (b.x2 - b.x1) * lx, cz = b.z1 + (b.z2 - b.z1) * lz;
     if (W.nearestOnTrack(a, cx, cz, 3).d > r + a.wb + 6) add(flatQuad(cx - r, cz - r, cx + r, cz + r, 0.05, 4), new THREE.MeshBasicMaterial({ map: TX.lava }));
   }
-  add(flatQuad(b.x1 - M, b.z1 - M, b.x2 + M, b.z2 + M, 0, 4), lam({ map: ground }));
-  add(ribbon(a, -a.w / 2, a.w / 2, 0.06, 8), a.theme === 'rainbow' ? new THREE.MeshBasicMaterial({ map: road }) : lam({ map: road }));
+  add(flatQuad(b.x1 - M, b.z1 - M, b.x2 + M, b.z2 + M, 0, 4), th.glowGround ? new THREE.MeshBasicMaterial({ map: ground }) : lam({ map: ground }));
+  // 노면 (점 번호마다 폭이 다를 수 있음, 낭떠러지 구간은 비움)
+  const hw = i => a.hw[i], wbo = i => a.wbs[i] + 0.5;
+  const gapSeg = i => a.gap[i] || a.gap[(i + 1) % n];
+  add(ribbon(a, i => -hw(i), hw, 0.06, 8, gapSeg), a.theme === 'rainbow' ? new THREE.MeshBasicMaterial({ map: road }) : lam({ map: road }));
   const runMat = a.theme === 'volcano' ? new THREE.MeshBasicMaterial({ map: runoff }) : lam({ map: runoff });
-  add(ribbon(a, a.w / 2 + 1.6, a.wb + 0.5, 0.04, 4), runMat);
-  add(ribbon(a, -a.wb - 0.5, -a.w / 2 - 1.6, 0.04, 4), runMat);
+  add(ribbon(a, i => hw(i) + 1.6, wbo, 0.04, 4, gapSeg), runMat);
+  add(ribbon(a, i => -wbo(i), i => -hw(i) - 1.6, 0.04, 4, gapSeg), runMat);
   const curbMat = th.glow ? new THREE.MeshBasicMaterial({ map: T.curb, color: 0xff80d0 }) : lam({ map: T.curb });
-  add(ribbon(a, a.w / 2, a.w / 2 + 1.6, 0.09, 4), curbMat);
-  add(ribbon(a, -a.w / 2 - 1.6, -a.w / 2, 0.09, 4), curbMat);
+  add(ribbon(a, hw, i => hw(i) + 1.6, 0.09, 4, gapSeg), curbMat);
+  add(ribbon(a, i => -hw(i) - 1.6, i => -hw(i), 0.09, 4, gapSeg), curbMat);
+  // 기름(미끄러움) / 진흙(느림)
+  if (a.patch) {
+    const pm = { oil: lam({ map: TX.oil, transparent: true, opacity: 0.9 }), mud: lam({ map: TX.mud }) };
+    for (const kind of ['oil', 'mud']) if (a.patch.includes(kind)) add(ribbon(a, i => -hw(i) + 0.4, i => hw(i) - 0.4, 0.11, 6, i => a.patch[i] !== kind || gapSeg(i)), pm[kind]);
+  }
   g.add(startLine(a, T), gantry(a, T));
 
+  // 높은 길: 아래판 + 옆면 + 기둥
+  if (a.elev) {
+    const high = i => a.ey[i] > 1.2 || a.ey[(i + 1) % n] > 1.2;
+    const conc = lam({ map: th.deck ? texOf(th.deck) : T.concrete, side: THREE.DoubleSide });
+    add(ribbon(a, i => -wbo(i), wbo, -0.7, 6, i => !high(i) || gapSeg(i)), conc);
+    const pos = [], uv = [];
+    let dist = 0;
+    for (let i = 0; i < n; i++) {
+      const i2 = (i + 1) % n, pa = a.path[i], pb = a.path[i2], ta = a.tan[i], tb = a.tan[i2];
+      const seg = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
+      if (high(i) && !gapSeg(i)) for (const sd of [1, -1]) {
+        const ax = pa[0] + ta[1] * sd * wbo(i), az = pa[1] - ta[0] * sd * wbo(i), bx = pb[0] + tb[1] * sd * wbo(i2), bz = pb[1] - tb[0] * sd * wbo(i2);
+        const ea = a.ey[i], eb = a.ey[i2], la = ea < 6 ? 0 : ea - 0.8, lb = eb < 6 ? 0 : eb - 0.8;
+        pos.push(ax, ea + 0.05, az, bx, eb + 0.05, bz, bx, lb, bz, ax, ea + 0.05, az, bx, lb, bz, ax, la, az);
+        const u0 = dist / 4, u1 = (dist + seg) / 4;
+        uv.push(u0, ea / 4, u1, eb / 4, u1, lb / 4, u0, ea / 4, u1, lb / 4, u0, la / 4);
+      }
+      dist += seg;
+    }
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    sg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    sg.computeVertexNormals();
+    add(sg, conc);
+    const pil = [];
+    for (let i = 0; i < n; i += 6) if (a.ey[i] > 6 && !a.cross[i] && ![-4, -2, 0, 2, 4].some(k => a.gap[(i + k + n) % n])) pil.push(i);
+    const pm = new THREE.InstancedMesh(boxUV(3, 1, 3, 4), lam({ map: T.concrete }), pil.length);
+    const mm = new THREE.Matrix4();
+    pil.forEach((i, k) => { const e = a.ey[i] - 0.7; mm.makeScale(1, e, 1); mm.setPosition(a.path[i][0], e / 2, a.path[i][1]); pm.setMatrixAt(k, mm); });
+    pm.castShadow = true; pm.receiveShadow = true;
+    g.add(pm);
+  }
+
   // 벽 (타이어 벽 / 네온 블록)
-  const n = a.barriers.length;
+  const nb = a.barriers.length;
   const barMat = th.glow ? new THREE.MeshBasicMaterial({ color: 0xffffff }) : lam({ color: 0xffffff });
-  const bars = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1.3, 1), barMat, n);
+  const bars = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1.3, 1), barMat, nb);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), col = new THREE.Color();
   a.barriers.forEach((s, i) => {
     const dx = s[2] - s[0], dz = s[3] - s[1], len = Math.hypot(dx, dz);
     q.setFromAxisAngle(up, Math.atan2(dx, dz));
-    p.set((s[0] + s[2]) / 2 - s[4] * 0.5, 0.65, (s[1] + s[3]) / 2 - s[5] * 0.5);
+    p.set((s[0] + s[2]) / 2 - s[4] * 0.5, 0.65 + (s[6] || 0), (s[1] + s[3]) / 2 - s[5] * 0.5);
     sc.set(1, 1, len + 0.25);
     m4.compose(p, q, sc);
     bars.setMatrixAt(i, m4);
@@ -176,24 +233,47 @@ function buildArena(a) {
 
   // 점프대 / 부스터
   const rampMats = [lam({ map: T.plank, side: THREE.DoubleSide }), lam({ map: T.hazard, side: THREE.DoubleSide })];
-  for (const r of W.ramps) if (W.arenaAt(r.cx) === a) { const m = add(wedgeGeo(r), rampMats, true); m.position.set(r.cx, 0, r.cz); m.rotation.y = r.rot; }
+  for (const r of W.ramps) if (W.arenaAt(r.cx) === a) { const m = add(wedgeGeo(r), rampMats, true); m.position.set(r.cx, r.y0 || 0, r.cz); m.rotation.y = r.rot; }
   const bMat = lam({ map: T.boost, emissive: 0x552200 });
   for (const bs of a.boostSpecs) {
     const geo = new THREE.PlaneGeometry(bs.w, bs.len); geo.rotateX(-Math.PI / 2);
-    const m = add(geo, bMat); m.position.set(bs.cx, 0.12, bs.cz); m.rotation.y = bs.rot;
+    const m = add(geo, bMat); m.position.set(bs.cx, 0.12 + (bs.y || 0), bs.cz); m.rotation.y = bs.rot;
   }
+  // 슬라럼 기둥
+  if (a.posts.length) {
+    const pm = new THREE.InstancedMesh(new THREE.CylinderGeometry(1.3, 1.3, 3, 8), lam({ map: T.hazard }), a.posts.length);
+    a.posts.forEach((o, k) => { m4.makeTranslation(o.x, o.e + 1.5, o.z); pm.setMatrixAt(k, m4); });
+    pm.castShadow = true;
+    g.add(pm);
+  }
+  // 움직이는 장애물
+  a.moverMeshes = a.movers.map(m => {
+    const mat = lam({ map: T.hazard }), dark = lam({ color: 0x3a3a44 });
+    const grp = new THREE.Group(), parts = [];
+    if (m.k === 'slide') { const box = new THREE.Mesh(boxUV(4.5, 2.6, 3, 2), mat); box.castShadow = true; grp.add(box); parts.push(box); }
+    else if (m.k === 'spin') {
+      const bar = new THREE.Mesh(boxUV(1.2, 1.4, (m.hw - 1.5) * 2, 2), mat); bar.castShadow = true; grp.add(bar); parts.push(bar);
+      const post = new THREE.Mesh(boxUV(1.6, 3.4, 1.6, 2), dark); post.position.set(m.x, m.e + 1.7, m.z); grp.add(post);
+    } else {
+      for (let k = 0; k < 2; k++) { const box = new THREE.Mesh(boxUV(m.hw - 0.6, 3, 6, 2), mat); box.castShadow = true; grp.add(box); parts.push(box); }
+      for (const sd of [1, -1]) { const post = new THREE.Mesh(boxUV(1, 12, 1, 2), dark); post.position.set(m.x + m.tz * sd * (m.hw + 2), m.e + 6, m.z - m.tx * sd * (m.hw + 2)); g.add(post); }
+      const beam = new THREE.Mesh(boxUV(1, 1, m.hw * 2 + 5, 2), dark); beam.position.set(m.x, m.e + 12, m.z); beam.rotation.y = Math.atan2(m.tx, m.tz) + Math.PI / 2; g.add(beam);
+    }
+    g.add(grp);
+    return { grp, parts };
+  });
 
   // 관중석 (출발선 옆)
   {
-    const p0 = a.path[6], tg = a.tan[6], nx = -tg[1], nz = tg[0];
+    const p0 = a.path[6], tg = a.tan[6], nx = -tg[1], nz = tg[0], e0 = a.ey[6];
     const st = new THREE.Group();
-    st.position.set(p0[0] + nx * (a.wb + 9), 0, p0[1] + nz * (a.wb + 9));
+    st.position.set(p0[0] + nx * (a.wbs[6] + 9), e0, p0[1] + nz * (a.wbs[6] + 9));
     st.rotation.y = Math.atan2(tg[0], tg[1]);
     const crowd = lam({ map: TX.crowd }), conc = lam({ map: T.concrete });
     for (let k = 0; k < 5; k++) {
       const m = new THREE.Mesh(boxUV(6, 1.2 + k * 1.2, 70, 4), [crowd, crowd, conc, conc, conc, conc]);
-      m.position.set(k * 3 * (nx >= 0 ? 1 : 1), (1.2 + k * 1.2) / 2, 0);
-      m.position.x = k * 3; m.castShadow = true; m.receiveShadow = true;
+      m.position.set(k * 3, (1.2 + k * 1.2) / 2, 0);
+      m.castShadow = true; m.receiveShadow = true;
       st.add(m);
     }
     const roof = new THREE.Mesh(boxUV(18, 0.6, 72, 4), conc); roof.position.set(6, 9, 0); roof.castShadow = true; st.add(roof);
@@ -203,24 +283,47 @@ function buildArena(a) {
   // 장식 (트랙 밖)
   const R = W.rng(a.id.length * 97 + 13);
   const spots = [];
-  for (let k = 0; k < 900 && spots.length < 260; k++) {
+  const span = Math.max(b.x2 - b.x1, b.z2 - b.z1), want = Math.min(520, Math.round(260 * Math.max(1, span / 700)));
+  for (let k = 0; k < want * 4 && spots.length < want; k++) {
     const x = b.x1 - 260 + R() * (b.x2 - b.x1 + 520), z = b.z1 - 260 + R() * (b.z2 - b.z1 + 520);
     if (a.theme === 'beach' && x > b.x2 + 60) continue;
     if (a.theme === 'port' && x < b.x1 - 50) continue;
-    if (W.nearestOnTrack(a, x, z, 2).d > a.wb + 10) spots.push([x, z, 0.8 + R() * 0.7, Math.floor(R() * 4)]);
+    const nr = W.nearestOnTrack(a, x, z, 2);
+    if (nr.d > a.wbs[nr.i] + 10) spots.push([x, z, 0.8 + R() * 0.7, Math.floor(R() * 4)]);
   }
   buildDeco(g, th.deco, spots, T);
 
   // 밤: 트랙 가로등
   if (th.glow) {
     const pts = [];
-    for (let i = 0; i < a.path.length; i += 10) for (const s of [1, -1]) { const pp = a.path[i], tg = a.tan[i]; pts.push([pp[0] + tg[1] * s * (a.wb + 1.5), pp[1] - tg[0] * s * (a.wb + 1.5)]); }
+    for (let i = 0; i < n; i += 10) if (!a.gap[i]) for (const s of [1, -1]) { const pp = a.path[i], tg = a.tan[i], o = a.wbs[i] + 1.5; pts.push([pp[0] + tg[1] * s * o, pp[1] - tg[0] * s * o, a.ey[i]]); }
     const pole = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, 7, 0.3), lam({ color: 0x30344a }), pts.length);
     const head = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 0.5, 0.9), new THREE.MeshBasicMaterial({ color: 0xfff0c0 }), pts.length);
-    pts.forEach(([x, z], i) => { m4.makeTranslation(x, 3.5, z); pole.setMatrixAt(i, m4); m4.makeTranslation(x, 7.1, z); head.setMatrixAt(i, m4); });
+    pts.forEach(([x, z, e], i) => { m4.makeTranslation(x, e + 3.5, z); pole.setMatrixAt(i, m4); m4.makeTranslation(x, e + 7.1, z); head.setMatrixAt(i, m4); });
     g.add(pole, head);
   }
   return g;
+}
+
+// 움직이는 장애물의 지금 모양 (모든 사람이 같은 시계(Date.now)로 계산해서 대충 맞음)
+// 반환: 상자 목록 {x,z,y,ux,uz,hu,hv,h,vx,vz} (u = 상자의 긴 축 방향 단위벡터, hu/hv = 반 길이, y = 바닥 높이, h = 높이)
+function moverBoxes(m, t) {
+  const nx = m.tz, nz = -m.tx, ph = t / m.period + m.phase, out = [];
+  if (m.k === 'slide') {
+    const amp = Math.max(0, m.hw - 2.6), s = Math.sin(ph * Math.PI * 2), v = Math.cos(ph * Math.PI * 2) * amp * Math.PI * 2 / m.period;
+    out.push({ x: m.x + nx * amp * s, z: m.z + nz * amp * s, y: m.e, ux: m.tx, uz: m.tz, hu: 1.5, hv: 2.25, h: 2.6, vx: nx * v, vz: nz * v });
+  } else if (m.k === 'spin') {
+    const th = ph * Math.PI * 2, c = Math.cos(th), s = Math.sin(th);
+    out.push({ x: m.x, z: m.z, y: m.e + 0.2, ux: nx * c + m.tx * s, uz: nz * c + m.tz * s, hu: m.hw - 1.5, hv: 0.6, h: 1.4, spin: Math.PI * 2 / m.period });
+  } else {
+    for (let k = 0; k < 2; k++) {
+      const u = ((ph + k * 0.5) % 1 + 1) % 1, sd = k ? 1 : -1;
+      const lift = u < 0.35 ? 7 : (u < 0.42 ? 7 * (1 - (u - 0.35) / 0.07) : (u < 0.75 ? 0 : 7 * (u - 0.75) / 0.25));
+      const off = sd * m.hw / 2;
+      out.push({ x: m.x + nx * off, z: m.z + nz * off, y: m.e + lift, ux: m.tx, uz: m.tz, hu: 3, hv: m.hw / 2 - 0.3, h: 3, vx: 0, vz: 0 });
+    }
+  }
+  return out;
 }
 function buildDeco(g, kind, spots, T) {
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
@@ -236,6 +339,9 @@ function buildDeco(g, kind, spots, T) {
     container: [[12, 2.6, 2.6, 0, 1.3, null, 0xc83a32], [12, 2.6, 2.6, 0, 3.9, null, 0x3a6fd8], [12, 2.6, 2.6, 0.3, 6.5, null, 0xe0b030]],
     star: [[2, 2, 2, 0, 12, 'glow', 0xfff07a], [1.2, 1.2, 1.2, 1.5, 17, 'glow', 0x7ae8ff], [0.8, 0.8, 0.8, -1.5, 8, 'glow', 0xff8ad8]],
     jungle: [[0.8, 9, 0.8, 0, 4.5, T.bark, 0xffffff], [7, 0.5, 1.6, 0, 9.2, null, 0x2e8a2e], [1.6, 0.5, 7, 0, 9.2, null, 0x2e8a2e], [4, 2.4, 4, 1.8, 1.2, null, 0x2a6a2a]],
+    cloud: [[12, 3, 8, 0, 2, null, 0xffffff], [7, 3, 6, 4, 4, null, 0xf4f8ff], [8, 2.4, 6, -4, 3, null, 0xeaf2ff]],
+    chimney: [[5, 24, 5, 0, 12, null, 0x6a5a52], [5.6, 1.2, 5.6, 0, 23.4, null, 0xd83a3a], [12, 7, 9, 5, 3.5, null, 0x5a6070]],
+    pyramid: [[16, 4, 16, 0, 2, TX.sandstone, 0xffffff], [11, 4, 11, 0, 6, TX.sandstone, 0xffffff], [6, 4, 6, 0, 10, TX.sandstone, 0xffffff], [2.4, 2.4, 2.4, 0, 13.2, null, 0xf2c230]],
   }[kind];
   const glowKind = kind === 'neon' || kind === 'star';
   for (const [sx, sy, sz, ox, oy, map, color] of parts) {
@@ -265,9 +371,18 @@ function mapOf(a) {
   const th = THEMES[a.theme];
   g.fillStyle = GROUND[a.theme][3]; g.fillRect(0, 0, size, size);
   g.lineJoin = 'round';
-  const path = () => { g.beginPath(); a.path.forEach((p, i) => { const [x, y] = to(p[0], p[1]); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); };
-  g.strokeStyle = '#' + th.bar[0].toString(16).padStart(6, '0'); g.lineWidth = (a.wb * 2 + 4) * s; path(); g.stroke();
-  g.strokeStyle = a.theme === 'snow' ? '#8ab8e0' : '#3e3e44'; g.lineWidth = a.w * s * 1.4; path(); g.stroke();
+  const n = a.path.length, order = [...Array(n).keys()].sort((i, j) => a.ey[i] - a.ey[j]);
+  const barCol = '#' + th.bar[0].toString(16).padStart(6, '0'), roadCol = a.theme === 'snow' ? '#8ab8e0' : '#3e3e44';
+  g.lineCap = 'round';
+  for (const i of order) {
+    const p1 = a.path[i], p2 = a.path[(i + 1) % n], [x1, y1] = to(p1[0], p1[1]), [x2, y2] = to(p2[0], p2[1]);
+    const lift = Math.min(1, a.ey[i] / 30);
+    g.strokeStyle = a.ey[i] > 4 ? '#000' : barCol; g.lineWidth = (a.wbs[i] * 2 + 4) * s + (a.ey[i] > 4 ? 3 : 0);
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+    g.strokeStyle = a.gap[i] ? '#111' : (lift > 0.1 ? `rgb(${62 + lift * 90},${62 + lift * 90},${68 + lift * 90})` : roadCol);
+    g.lineWidth = a.hw[i] * 2 * s * 1.4;
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  }
   const [sx, sy] = to(a.path[0][0], a.path[0][1]);
   g.fillStyle = '#fff'; g.fillRect(sx - 4, sy - 2, 8, 4);
   return (mapCache[a.id] = { c, to, s });
@@ -291,9 +406,9 @@ function buildBoxes(a) {
   const mat = new THREE.MeshLambertMaterial({ map: TX.box, emissive: 0x2a1a6a, transparent: true, opacity: 0.9 });
   for (const b of a.itemBoxes) {
     const m = new THREE.Mesh(geo, mat);
-    m.position.set(b.x, 1.6, b.z);
+    m.position.set(b.x, (b.y || 0) + 1.6, b.z);
     X.scene.add(m);
-    boxMeshes.push({ m, x: b.x, z: b.z, back: 0 });
+    boxMeshes.push({ m, x: b.x, z: b.z, y: b.y || 0, back: 0 });
   }
   showBoxes();
 }
@@ -319,16 +434,18 @@ function g3() {
 }
 function spawnObj(m) {
   const G = g3(), o = { id: m.id, kind: m.kind, x: m.x, z: m.z, x2: m.x2, z2: m.z2, t0: performance.now(), hitBy: new Set() };
+  o.y = Number.isFinite(m.y) ? m.y : W.groundHeight(m.x, m.z);
+  o.y2 = Number.isFinite(m.y2) ? m.y2 : W.groundHeight(m.x2, m.z2);
   if (m.kind === 'banana') {
     o.mesh = new THREE.Group();
     const b1 = new THREE.Mesh(G.banana, G.bananaMat); b1.rotation.y = 0.5; b1.position.x = -0.3;
     const b2 = new THREE.Mesh(G.banana, G.bananaMat); b2.rotation.y = -0.5; b2.position.x = 0.3;
     o.mesh.add(b1, b2);
-    o.mesh.position.set(m.x, W.groundHeight(m.x, m.z) + 0.4, m.z);
+    o.mesh.position.set(m.x, o.y + 0.4, m.z);
   } else {
     o.mesh = new THREE.Mesh(G.ball, G.ballMat);
     o.splash = new THREE.Mesh(G.splash, G.splashMat); o.splash.visible = false;
-    o.splash.position.set(m.x2, W.groundHeight(m.x2, m.z2) + 0.2, m.z2);
+    o.splash.position.set(m.x2, o.y2 + 0.2, m.z2);
     X.scene.add(o.splash);
   }
   X.scene.add(o.mesh);
@@ -388,7 +505,7 @@ function mySlot() {
 }
 function toGrid(slot) {
   const s = W.gridSlot(S.arena, slot);
-  X.spawnCar(s.x, s.z, s.yaw);
+  X.spawnCar(s.x, s.z, s.yaw, s.y);
   resetEffects();
 }
 function resetEffects() {
@@ -476,6 +593,21 @@ function startRun(run, late) {
 }
 
 /* ================= 대기실 UI ================= */
+const DIFF_NAME = { 1: '입문', 2: '쉬움', 3: '보통', 4: '어려움', 5: '지옥' };
+function trackTags(a) {
+  const t = [];
+  if (a.elev) t.push('고가도로');
+  if (a.cross.some(Boolean) && a.elev) t.push('입체 교차');
+  if (a.gap.some(Boolean)) t.push('낭떠러지 점프');
+  if (W.ramps.some(r => W.arenaAt(r.cx) === a)) t.push('점프대');
+  if (a.movers.length) t.push('움직이는 장애물');
+  if (a.posts.length) t.push('기둥 슬라럼');
+  if (a.patch && a.patch.includes('oil')) t.push('기름');
+  if (a.patch && a.patch.includes('mud')) t.push('진흙');
+  if (a.theme === 'snow') t.push('빙판');
+  if (Math.min(...a.hw) * 2 < 15) t.push('좁은 길');
+  return t.length ? `<br><span class="muted">${t.join(' · ')}</span>` : '';
+}
 function isHost() { return S.room && S.room.host === X.G.myId; }
 function openLobby(on) {
   S.lobbyOpen = on && !S.run;
@@ -488,8 +620,8 @@ function renderLobby() {
   const r = S.room, host = isHost(), set = r.set, me = r.players.find(p => p.id === X.G.myId);
   const a = W.trackById[set.track];
   $('glTitle').textContent = `${X.G.room?.name || ''}  ·  코드 ${X.G.room?.code || ''}`;
-  $('glTrack').innerHTML = W.arenas.map(t => `<option value="${t.id}" ${t.id === set.track ? 'selected' : ''}>${t.name} (${(t.length / 1000).toFixed(1)}km)</option>`).join('');
-  $('glTrackDesc').textContent = a.desc;
+  $('glTrack').innerHTML = [1, 2, 3, 4, 5].map(d => `<optgroup label="난이도 ${d} · ${DIFF_NAME[d]}">` + W.arenas.filter(t => t.diff === d).map(t => `<option value="${t.id}" ${t.id === set.track ? 'selected' : ''}>${t.name} (${(t.length / 1000).toFixed(1)}km)</option>`).join('') + '</optgroup>').join('');
+  $('glTrackDesc').innerHTML = `<span class="diff d${a.diff}">${'■'.repeat(a.diff)}${'□'.repeat(5 - a.diff)} ${DIFF_NAME[a.diff]}</span> ${(a.length / 1000).toFixed(1)}km · ${X.esc(a.desc)}${trackTags(a)}`;
   const seg = (id, v) => document.querySelectorAll(`#${id} button`).forEach(b => { b.classList.toggle('on', b.dataset.v === String(v)); b.disabled = !host; });
   seg('glMode', set.mode); seg('glTeam', set.team); seg('glQuali', set.quali); seg('glLaps', set.laps);
   $('glTrack').disabled = !host;
@@ -602,8 +734,8 @@ export function useItem() {
   if (!it) return;
   switch (it) {
     case 'boost': boost(1.4, 1.6); break;
-    case 'banana': { const back = car.shape.len / 2 + 2; X.send({ t: 'gi', k: 'obj', kind: 'banana', x: car.x - fx * back, z: car.z - fz * back }); break; }
-    case 'water': { const d = 30 + sp * 0.4; X.send({ t: 'gi', k: 'obj', kind: 'water', x: car.x, z: car.z, x2: car.x + fx * d, z2: car.z + fz * d }); X.sfx.item(); break; }
+    case 'banana': { const back = car.shape.len / 2 + 2; X.send({ t: 'gi', k: 'obj', kind: 'banana', x: car.x - fx * back, z: car.z - fz * back, y: car.y }); break; }
+    case 'water': { const d = 30 + sp * 0.4; const x2 = car.x + fx * d, z2 = car.z + fz * d; X.send({ t: 'gi', k: 'obj', kind: 'water', x: car.x, z: car.z, y: car.y, x2, z2, y2: W.groundHeight(x2, z2, car.y + 3) }); X.sfx.item(); break; }
     case 'missile': { const to = targetAhead(); if (to) { X.send({ t: 'gi', k: 'missile', to }); X.sfx.boost(); } else X.toast('맞출 상대가 없어요'); break; }
     case 'shield': car.shieldT = 7; X.sfx.shield(); break;
     case 'magnet': { const to = targetAhead(); if (to) { car.magnetT = 2.5; car.magnetTo = to; X.sfx.item(); } break; }
@@ -646,6 +778,37 @@ function hitMe(kind) {
   void fx; void fz;
 }
 
+// 차(원 여러 개) ↔ 회전된 상자 충돌. 밀어내고 튕기고 살짝 돌게
+function hitMover(car, bx) {
+  const sh = car.shape, vx0 = bx.ux, vz0 = bx.uz, wx = vz0, wz = -vx0;
+  let hit = false;
+  for (const oz of sh.offs) {
+    const cx = car.x + Math.sin(car.yaw) * oz, cz = car.z + Math.cos(car.yaw) * oz;
+    const dx = cx - bx.x, dz = cz - bx.z, lu = dx * vx0 + dz * vz0, lv = dx * wx + dz * wz;
+    const qu = clamp(lu, -bx.hu, bx.hu), qv = clamp(lv, -bx.hv, bx.hv);
+    let nu = lu - qu, nv = lv - qv, d = Math.hypot(nu, nv), pen;
+    if (d >= sh.r) continue;
+    if (d < 1e-4) { // 안에 들어감 → 가까운 면으로
+      const ou = bx.hu - Math.abs(lu), ov = bx.hv - Math.abs(lv);
+      if (ou < ov) { nu = Math.sign(lu) || 1; nv = 0; pen = ou + sh.r; } else { nu = 0; nv = Math.sign(lv) || 1; pen = ov + sh.r; }
+    } else { nu /= d; nv /= d; pen = sh.r - d; }
+    const nx = nu * vx0 + nv * wx, nz = nu * vz0 + nv * wz;
+    car.x += nx * pen; car.z += nz * pen;
+    let ovx = bx.vx || 0, ovz = bx.vz || 0;
+    if (bx.spin) { const rx = cx - bx.x, rz = cz - bx.z; ovx = -rz * bx.spin; ovz = rx * bx.spin; }
+    const rv = (car.vx - ovx) * nx + (car.vz - ovz) * nz;
+    if (rv < 0) { car.vx -= rv * nx * 1.6; car.vz -= rv * nz * 1.6; }
+    const push = ovx * nx + ovz * nz;
+    if (push > 0) { car.vx += nx * push * 0.6; car.vz += nz * push * 0.6; }
+    if (rv < -4 || push > 4) hit = true;
+  }
+  if (hit && car.hitCd <= 0) {
+    car.hitCd = 0.4; car.bumpT = 0.4; car.yawRate += (Math.random() < 0.5 ? -1 : 1) * 3;
+    X.sfx.crash(12); X.camState.shake = 0.35;
+    for (let i = 0; i < 8; i++) X.spawnPart(car.x, car.y + 1, car.z, (Math.random() - 0.5) * 8, Math.random() * 5, (Math.random() - 0.5) * 8, 0xffd040, 0.5, 0.7);
+  }
+}
+
 /* ================= 물리 보정 (매 스텝) ================= */
 export function prePhysics(dt, inp) {
   if (!GP.active) return inp;
@@ -684,10 +847,10 @@ export function respawnGP() {
   if (!a) return;
   if (S.run && S.inRun && S.c > 0 && !S.done) {
     const idx = a.cps[(S.c - 1) % a.cps.length], p = a.path[idx], tg = a.tan[idx];
-    X.spawnCar(p[0], p[1], Math.atan2(tg[0], tg[1]));
+    X.spawnCar(p[0], p[1], Math.atan2(tg[0], tg[1]), a.ey[idx]);
   } else {
-    const p = W.respawnPoint(car.x, car.z);
-    X.spawnCar(p.x, p.z, p.yaw);
+    const p = W.respawnPoint(car.x, car.z, car.y + 2);
+    X.spawnCar(p.x, p.z, p.yaw, p.y);
   }
   resetEffects();
 }
@@ -704,11 +867,11 @@ export function gpFrame(dt, now) {
       if (b.back && now > b.back) { b.back = 0; b.m.visible = true; }
       if (b.back) continue;
       b.m.rotation.y = t * 1.5; b.m.rotation.x = t * 0.7;
-      b.m.position.y = 1.6 + Math.sin(t * 3 + b.x) * 0.2;
-      if (!GP.spectating() && Math.hypot(car.x - b.x, car.z - b.z) < 2.6 && car.y < 4) {
+      b.m.position.y = b.y + 1.6 + Math.sin(t * 3 + b.x) * 0.2;
+      if (!GP.spectating() && Math.hypot(car.x - b.x, car.z - b.z) < 2.6 && Math.abs(car.y - b.y) < 4) {
         b.back = now + 2500; b.m.visible = false;
         if (S.items.length < 2) { S.items.push(rollItem()); X.sfx.item(); renderHud(); }
-        for (let k = 0; k < 8; k++) X.spawnPart(b.x, 1.6, b.z, (Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6, 0x9a80ff, 0.5, 0.7);
+        for (let k = 0; k < 8; k++) X.spawnPart(b.x, b.y + 1.6, b.z, (Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6, 0x9a80ff, 0.5, 0.7);
       }
     }
   }
@@ -718,19 +881,19 @@ export function gpFrame(dt, now) {
     const age = (now - o.t0) / 1000;
     if (o.kind === 'banana') {
       o.mesh.rotation.y = t * 2;
-      if (age > 0.4 && !GP.spectating() && Math.hypot(car.x - o.x, car.z - o.z) < 2.2 && car.y < 3) { hitMe('banana'); X.send({ t: 'gi', k: 'rm', id: o.id }); removeObj(o.id); }
+      if (age > 0.4 && !GP.spectating() && Math.hypot(car.x - o.x, car.z - o.z) < 2.2 && Math.abs(car.y - o.y) < 2.5) { hitMe('banana'); X.send({ t: 'gi', k: 'rm', id: o.id }); removeObj(o.id); }
       if (age > 60) removeObj(o.id);
     } else {
       const fly = 0.7;
       if (age < fly) {
         const k = age / fly;
-        o.mesh.position.set(o.x + (o.x2 - o.x) * k, 1.5 + Math.sin(k * Math.PI) * 8, o.z + (o.z2 - o.z) * k);
+        o.mesh.position.set(o.x + (o.x2 - o.x) * k, o.y + (o.y2 - o.y) * k + 1.5 + Math.sin(k * Math.PI) * 8, o.z + (o.z2 - o.z) * k);
       } else {
         if (!o.splash.visible) { o.splash.visible = true; o.mesh.visible = false; X.sfx.splash(); }
         const s = 1 + Math.sin(t * 6) * 0.05;
         o.splash.scale.set(s, 1, s);
-        if (Math.random() < 0.3) X.spawnPart(o.x2 + (Math.random() - 0.5) * 8, 0.5, o.z2 + (Math.random() - 0.5) * 8, 0, 2 + Math.random() * 2, 0, 0x8ac8ff, 0.5, 0.6);
-        if (!GP.spectating() && !o.hitBy.has(me) && Math.hypot(car.x - o.x2, car.z - o.z2) < 5.2 && car.y < 4) { o.hitBy.add(me); hitMe('water'); }
+        if (Math.random() < 0.3) X.spawnPart(o.x2 + (Math.random() - 0.5) * 8, o.y2 + 0.5, o.z2 + (Math.random() - 0.5) * 8, 0, 2 + Math.random() * 2, 0, 0x8ac8ff, 0.5, 0.6);
+        if (!GP.spectating() && !o.hitBy.has(me) && Math.hypot(car.x - o.x2, car.z - o.z2) < 5.2 && Math.abs(car.y - o.y2) < 4) { o.hitBy.add(me); hitMe('water'); }
         if (age > fly + 3.5) removeObj(o.id);
       }
     }
@@ -751,6 +914,23 @@ export function gpFrame(dt, now) {
     if (d < 2.5) {
       if (ms.to === me) hitMe('missile');
       X.scene.remove(ms.mesh); missiles.splice(i, 1);
+    }
+  }
+
+  // 움직이는 장애물: 모양 갱신 + 내 차와 충돌
+  const wt = (Date.now() % 1e8) / 1000;
+  a.movers.forEach((m, k) => {
+    const boxes = moverBoxes(m, wt), mm = a.moverMeshes && a.moverMeshes[k];
+    if (mm) boxes.forEach((bx, j) => { const part = mm.parts[j]; if (part) { part.position.set(bx.x, bx.y + bx.h / 2, bx.z); part.rotation.y = Math.atan2(bx.ux, bx.uz); } });
+    if (GP.spectating() || Math.hypot(car.x - m.x, car.z - m.z) > 40 || Math.abs(car.y - m.e) > 5) return;
+    for (const bx of boxes) if (bx.y < car.y + 1.6) hitMover(car, bx);
+  });
+  // 낭떠러지로 떨어지면 마지막 체크포인트로
+  if (a.elev && !GP.spectating() && car.respawnCd <= 0) {
+    const on = W.trackAt(a, car.x, car.z, car.y + 2.5);
+    if (!on || on.gap) {
+      const below = W.trackAt(a, car.x, car.z);
+      if ((below ? below.e : 0) - car.y > 5 || (car.grounded && !on)) { car.respawnCd = 1; X.toast('추락! 마지막 체크포인트로 돌아가요'); respawnGP(); }
     }
   }
 
@@ -784,8 +964,8 @@ export function gpFrame(dt, now) {
     }
     const n = a.cps.length, total = run.phase === 'race' ? run.laps * n + 1 : Infinity;
     if (S.inRun && !S.done && now >= S.startAt) {
-      const i = S.c % n, cp = a.path[a.cps[i]];
-      if (Math.hypot(car.x - cp[0], car.z - cp[1]) < a.w * 0.9 && car.y < 9) {
+      const i = S.c % n, ci = a.cps[i], cp = a.path[ci], ce = a.ey[ci];
+      if (Math.hypot(car.x - cp[0], car.z - cp[1]) < Math.max(a.w * 0.9, a.hw[ci] * 1.8) && car.y > ce - 5 && car.y < ce + 14) {
         S.c++;
         X.send({ t: 'gpCp', i, x: car.x, z: car.z });
         if (i === 0) {
@@ -802,7 +982,7 @@ export function gpFrame(dt, now) {
       const np = a.path[a.cps[ni]], pp = a.path[a.cps[pi]];
       const seg = Math.hypot(np[0] - pp[0], np[1] - pp[1]) || 1;
       S.prog = S.c + clamp(1 - Math.hypot(car.x - np[0], car.z - np[1]) / seg, 0, 0.99);
-      const near = W.nearestOnTrack(a, car.x, car.z, 1), tt = a.tan[near.i];
+      const near = W.trackAt(a, car.x, car.z, car.y + 2.5) || W.nearestOnTrack(a, car.x, car.z, 1), tt = a.tan[near.i];
       S.wrongT = (car.vx * tt[0] + car.vz * tt[1]) < -4 ? S.wrongT + dt : 0;
     } else S.wrongT = 0;
     $('wrongway').classList.toggle('hidden', !(S.wrongT > 1.2));
@@ -860,7 +1040,7 @@ function hudTick(now) {
   if (!run) {
     top = `<div class="gp-k">${S.room?.phase === 'lobby' || !S.room ? '연습 주행 · ' + a.name : '다음 레이스 준비 중'}</div>`;
   } else if (run.phase === 'quali') {
-    const left = Math.max(0, (S.startAt + 75000 - now) / 1000);
+    const left = Math.max(0, ((S.endAt || S.startAt + 75000) - now) / 1000);
     const cur = S.lapStart ? now - S.lapStart : 0;
     top = `<div><span class="gp-k">예선 남은 시간</span><b class="gp-big">${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</b></div>
       <div><span class="gp-k">현재 랩</span>${S.inRun && S.lapStart ? X.fmtTime(cur) : '-'}</div><div><span class="gp-k">내 최고</span>${X.fmtTime(S.best)}</div>`;

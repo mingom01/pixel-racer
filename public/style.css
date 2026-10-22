@@ -344,3 +344,5 @@ body.offline #quickBtn, body.offline #refreshBtn, body.offline #saveGoogleBtn { 
 .cartabs { display: flex; flex-wrap: wrap; gap: 4px; }
 .cartabs .btn { padding: 3px 7px; min-height: 26px; font-size: 11px; }
 .cartabs .btn.on { background: #3f9a34; box-shadow: inset 2px 2px 0 #7ed36c, inset -2px -3px 0 #245e1c; }
+.diff { font-weight: bold; letter-spacing: 1px; margin-right: 4px; }
+.diff.d1 { color: #3aa64a; } .diff.d2 { color: #3a8ad8; } .diff.d3 { color: #c89a10; } .diff.d4 { color: #e0602a; } .diff.d5 { color: #d82a3a; }

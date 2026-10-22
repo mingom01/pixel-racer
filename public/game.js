@@ -139,8 +139,9 @@ const car = {
   vf: 0, vl: 0, boostT: 0, boostCd: 0, drifting: false, model: null, def: W.CARS[0], hitCd: 0, respawnCd: 0, airT: 0,
   yawRate: 0, bumpT: 0, driftT: 0, exitT: 0, shape: null,
 };
-function spawnCar(x, z, yaw) {
-  Object.assign(car, { x, z, y: W.groundHeight(x, z), yaw, vx: 0, vz: 0, vy: 0, grounded: true, steer: 0, vf: 0, vl: 0, boostT: 0, pitch: 0, roll: 0, yawRate: 0, bumpT: 0, driftT: 0 });
+// y: 다리가 겹치는 곳에서 어느 층인지 알려주는 높이 힌트 (생략 가능)
+function spawnCar(x, z, yaw, y) {
+  Object.assign(car, { x, z, y: W.groundHeight(x, z, y === undefined ? undefined : y + 1), yaw, vx: 0, vz: 0, vy: 0, grounded: true, steer: 0, vf: 0, vl: 0, boostT: 0, pitch: 0, roll: 0, yawRate: 0, bumpT: 0, driftT: 0 });
   camState.yaw = yaw; camState.init = false;
 }
 function rebuildMyCar() {
@@ -319,9 +320,9 @@ function physics(dt) {
 
   let fx = Math.sin(car.yaw), fz = Math.cos(car.yaw), lx = fz, lz = -fx;
   let vf = car.vx * fx + car.vz * fz, vl = car.vx * lx + car.vz * lz;
-  const surf = W.surfaceAt(car.x, car.z);
+  const surf = W.surfaceAt(car.x, car.z, car.y + 0.5);
   car.surf = surf;
-  const offPen = !d.off && surf === 'grass' ? 0.55 : (!d.off && surf === 'dirt' ? 0.85 : (surf === 'walk' ? 0.9 : (surf === 'runoff' ? (d.off ? 0.85 : 0.65) : (surf === 'water' ? 0.3 : 1))));
+  const offPen = !d.off && surf === 'grass' ? 0.55 : (!d.off && surf === 'dirt' ? 0.85 : (surf === 'walk' ? 0.9 : (surf === 'runoff' ? (d.off ? 0.85 : 0.65) : (surf === 'water' ? 0.3 : (surf === 'mud' ? (d.off ? 0.85 : 0.6) : 1)))));
   const maxV = d.maxV * offPen;
 
   if (car.grounded) {
@@ -336,7 +337,7 @@ function physics(dt) {
       vf -= Math.sign(vf) * Math.min(Math.abs(vf), (1.8 + Math.abs(vf) * 0.06) * dt);
     }
     if (vf > maxV && car.boostT <= 0) vf -= (vf - maxV) * (offPen < 1 ? 2.2 : 0.9) * dt;
-    const bp = W.boostAt(car.x, car.z);
+    const bp = W.boostAt(car.x, car.z, car.y);
     if (bp && !frozen && car.boostCd <= 0) {
       const along = car.vx * bp.fx + car.vz * bp.fz;
       if (along > 0) { vf = Math.max(vf, d.maxV * 1.35); car.boostT = 1.4; car.boostCd = 0.6; sfx.boost(); }
@@ -368,7 +369,7 @@ function physics(dt) {
       const ns = spd * (1 - 0.12 * dt);
       vf = ns * Math.cos(slip); vl = ns * Math.sin(slip);
     } else {
-      const grip = (offPen < 0.7 ? d.grip * 0.65 : d.grip) * (car.bumpT > 0 ? 0.3 : 1) * (surf === 'ice' ? 0.42 : 1);
+      const grip = (offPen < 0.7 ? d.grip * 0.65 : d.grip) * (car.bumpT > 0 ? 0.3 : 1) * (surf === 'ice' ? 0.42 : (surf === 'oil' ? 0.22 : 1));
       const nvl = vl * Math.exp(-grip * dt);
       // 옆으로 미끄러지며 잃는 속도의 일부를 앞으로 돌려줌 (드리프트 직후엔 더 많이)
       const lost = Math.abs(vl - nvl);
@@ -394,7 +395,7 @@ function physics(dt) {
 
   // 이동 + 벽(경사로 옆면) 판정
   let nx = car.x + car.vx * dt, nz = car.z + car.vz * dt;
-  const ghN = W.groundHeight(nx, nz);
+  const ghN = W.groundHeight(nx, nz, car.y + 0.5);
   let hit = 0;
   if (ghN - car.y > 0.9) {
     hit = Math.hypot(car.vx, car.vz);
@@ -406,7 +407,7 @@ function physics(dt) {
   for (const oz of sh.offs) {
     const ox = Math.sin(car.yaw) * oz, oy = Math.cos(car.yaw) * oz;
     const pos = { x: car.x + ox, z: car.z + oy }, vel = { x: car.vx, z: car.vz };
-    hit = Math.max(hit, W.collide(pos, sh.r, vel));
+    hit = Math.max(hit, W.collide(pos, sh.r, vel, car.y));
     car.x = pos.x - ox; car.z = pos.z - oy; car.vx = vel.x; car.vz = vel.z;
   }
 
@@ -458,7 +459,7 @@ function physics(dt) {
   }
 
   // 수직
-  const gh = W.groundHeight(car.x, car.z);
+  const gh = W.groundHeight(car.x, car.z, car.y + 0.5);
   if (car.grounded) {
     if (gh >= car.y - 0.32) { car.vy = (gh - car.y) / dt; car.y = gh; }
     else { car.grounded = false; car.airT = 0; car.vy = Math.min(car.vy, 30); }
@@ -475,8 +476,9 @@ function physics(dt) {
 
   // 차체 기울기
   if (car.grounded) {
-    const hf = W.groundHeight(car.x + fx * 1.6, car.z + fz * 1.6), hb = W.groundHeight(car.x - fx * 1.6, car.z - fz * 1.6);
-    const hl = W.groundHeight(car.x + lx * 0.9, car.z + lz * 0.9), hr = W.groundHeight(car.x - lx * 0.9, car.z - lz * 0.9);
+    const hy = car.y + 1;
+    const hf = W.groundHeight(car.x + fx * 1.6, car.z + fz * 1.6, hy), hb = W.groundHeight(car.x - fx * 1.6, car.z - fz * 1.6, hy);
+    const hl = W.groundHeight(car.x + lx * 0.9, car.z + lz * 0.9, hy), hr = W.groundHeight(car.x - lx * 0.9, car.z - lz * 0.9, hy);
     const tp = Math.atan2(hf - hb, 3.2) + clamp(-(inp.up ? 0.02 : 0) + (inp.down && vf > 1 ? -0.03 : 0), -0.05, 0.05);
     const tr = Math.atan2(hl - hr, 1.8) + clamp(vl * 0.012 - car.steer * sp * 0.0012, -0.12, 0.12);
     car.pitch = lerp(car.pitch, tp, Math.min(1, dt * 12));
@@ -490,7 +492,7 @@ function physics(dt) {
   // 혹시 값이 깨지면 (NaN) 가까운 도로로 되돌림
   if (!Number.isFinite(car.x + car.y + car.z + car.vx + car.vz + car.yaw)) {
     const p = W.respawnPoint(Number.isFinite(car.x) ? car.x : -60, Number.isFinite(car.z) ? car.z : 0);
-    spawnCar(p.x, p.z, p.yaw);
+    spawnCar(p.x, p.z, p.yaw, p.y);
   }
 }
 
@@ -502,7 +504,7 @@ function respawn() {
   if (r && r.inRace && !r.done && performance.now() >= r.startAt) {
     const t = W.trackById[r.track], n = t.cps.length;
     let idx;
-    if (r.c === 0) { const s = W.gridSlot(t, r.slot); spawnCar(s.x, s.z, s.yaw); return; }
+    if (r.c === 0) { const s = W.gridSlot(t, r.slot); spawnCar(s.x, s.z, s.yaw, s.y); return; }
     idx = t.cps[(r.c - 1) % n];
     const p = t.path[idx], tg = t.tan[idx];
     spawnCar(p[0], p[1], Math.atan2(tg[0], tg[1]));
@@ -526,8 +528,8 @@ function poseModel(m, s, dt) {
 }
 function carFx(s, isMe, dt) {
   const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw), lx = fz, lz = -fx;
-  const gh = W.groundHeight(s.x, s.z);
-  const onGround = s.y - gh < 0.3;
+  const gh = W.groundHeight(s.x, s.z, s.y + 0.5);
+  const onGround = Math.abs(s.y - gh) < 0.3;
   if (!onGround) return;
   const rearZ = -1.3;
   const surf = isMe ? car.surf : null;
@@ -579,7 +581,7 @@ function updateCamera(dt) {
     px = C.x - fx * dist; py = camState.y + h; pz = C.z - fz * dist;
     lx = C.x + fx * 4; ly = camState.y + 1.3; lz = C.z + fz * 4;
   }
-  py = Math.max(py, W.groundHeight(px, pz) + 0.8);
+  py = Math.max(py, W.groundHeight(px, pz, py) + 0.8);
   if (camState.shake > 0) {
     const s = camState.shake;
     px += (Math.random() - 0.5) * s; py += (Math.random() - 0.5) * s; pz += (Math.random() - 0.5) * s;
@@ -768,7 +770,7 @@ function onJoined(m) {
   for (let i = 0; i < coinUp.length; i++) setCoin(i, true);
   for (const id of m.coinsDown) setCoin(id, false);
   rebuildMyCar();
-  spawnCar(m.spawn.x, m.spawn.z, m.spawn.yaw);
+  spawnCar(m.spawn.x, m.spawn.z, m.spawn.yaw, m.spawn.y);
   $('chatlog').innerHTML = '';
   $('rName').textContent = G.room.name;
   $('rCode').textContent = G.room.code;
@@ -1343,7 +1345,7 @@ function frame() {
 /* ================= 시작 ================= */
 initGP({ scene, camera, hemi, sun, T, car, G, send, spawnCar, toast, bigText, sfx, fmtTime, esc, colorCss, worldRoot, coinGroup, spawnPart, camState, openGarage, leaveRoom: () => $('mLeave').click() });
 if (COARSE) setTouch(true);
-window.__pr = { G, car, spawnCar, physics, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); } } };
+window.__pr = { G, car, keys, touch, spawnCar, physics, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); } } };
 try { G.cfg = SERVER ? await (await fetch(SERVER + '/config.json', { cache: 'no-cache' })).json() : {}; } catch (e) { G.cfg = {}; }
 $('offlineBtn').onclick = () => goOffline();
 setupGoogle();
