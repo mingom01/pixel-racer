@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="픽셀 레이서">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
-<link rel="stylesheet" href="style.css?v=mvj4y0wt">
+<link rel="stylesheet" href="style.css?v=mvjkx9vu">
 </head>
 <body>
 <canvas id="c3d"></canvas>
@@ -83,6 +83,7 @@
     <span class="kbd">C</span> 카메라 &nbsp;
     <span class="kbd">H</span> 경적 &nbsp;
     <span class="kbd">M</span> 전체 지도 &nbsp;
+    <span class="kbd">B</span> 뒤 보기 &nbsp;
     <span class="kbd">Enter</span> 채팅 &nbsp;
     <span class="kbd">Esc</span> 메뉴 (레이스 시작/차고)<br>
     길 위의 <span class="coin-ico"></span> 코인(5)과 초록 보석(25)을 모아 차고에서 새 차를 사세요. 레이스 순위에 따라 보너스 코인!
@@ -173,6 +174,7 @@
       <b>설정</b>
       <div class="row"><label class="lb">픽셀 크기</label><div class="seg" id="mPix" style="flex:1"><button class="btn small" data-v="1">1x</button><button class="btn small" data-v="2">2x</button><button class="btn small" data-v="3">3x</button><button class="btn small" data-v="4">4x</button></div></div>
       <div class="row"><label class="lb">그림자</label><div class="seg" id="mShadow" style="flex:1"><button class="btn small" data-v="1">켜기</button><button class="btn small" data-v="0">끄기</button></div></div>
+      <div class="row"><label class="lb">후방 거울</label><div class="seg" id="mMirror" style="flex:1"><button class="btn small" data-v="1">레이스 중</button><button class="btn small" data-v="2">항상</button><button class="btn small" data-v="0">끄기</button></div></div>
       <div class="row touch-only"><label class="lb">핸들</label><div class="seg" id="mSteer" style="flex:1"><button class="btn small" data-v="pad">드래그</button><button class="btn small" data-v="btn">버튼</button></div></div>
       <div class="row touch-only"><label class="lb">자동 가속</label><div class="seg" id="mAuto" style="flex:1"><button class="btn small" data-v="1">켜기</button><button class="btn small" data-v="0">끄기</button></div></div>
       <div class="row"><label class="lb">소리</label><input type="range" id="mVol" min="0" max="100" style="flex:1"></div>
@@ -248,9 +250,9 @@ function bootFail(msg) {
 addEventListener('error', e => { if (!window.__booted) bootFail(e.message || (e.target && e.target.src) || ''); }, true);
 setTimeout(() => { if (!window.__booted) bootFail('시간 초과'); }, 45000);
 </script>
-<script src="net-config.js?v=mvj4y0wt"></script>
-<script src="world.js?v=mvj4y0wt"></script>
-<script src="gp_rules.js?v=mvj4y0wt"></script>
-<script type="module" src="game.js?v=mvj4y0wt"></script>
+<script src="net-config.js?v=mvjkx9vu"></script>
+<script src="world.js?v=mvjkx9vu"></script>
+<script src="gp_rules.js?v=mvjkx9vu"></script>
+<script type="module" src="game.js?v=mvjkx9vu"></script>
 </body>
 </html>

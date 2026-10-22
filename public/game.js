@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mvj4y0wt';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvj4y0wt';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvj4y0wt';
-import { makeLocalServer } from './local.js?v=mvj4y0wt';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvj4y0wt';
+import { makeTextures } from './tex.js?v=mvjkx9vu';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvjkx9vu';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvjkx9vu';
+import { makeLocalServer } from './local.js?v=mvjkx9vu';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvjkx9vu';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -18,7 +18,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
 const COARSE = matchMedia('(pointer: coarse)').matches;
-const settings = Object.assign({ pix: COARSE ? 1 : 2, shadow: COARSE ? 0 : 1, vol: 60, cam: 0, steer: 'pad', autoGas: 0 }, (() => { try { return JSON.parse(lsGet('pr_settings') || '{}'); } catch (e) { return {}; } })());
+const settings = Object.assign({ pix: COARSE ? 1 : 2, shadow: COARSE ? 0 : 1, vol: 60, cam: 0, steer: 'pad', autoGas: 0, mirror: 1 }, (() => { try { return JSON.parse(lsGet('pr_settings') || '{}'); } catch (e) { return {}; } })());
 const saveSettings = () => lsSet('pr_settings', JSON.stringify(settings));
 
 /* ================= 렌더러 ================= */
@@ -435,20 +435,21 @@ function physics(dt) {
       continue;
     }
     p.lastBump = now;
-    const j = -(1 + 0.45) * rv / (1 / mA + 1 / mB);
+    const j = -(1 + 0.45) * rv / (1 / mA + 1 / mB) * 1.5; // 충돌 세기 (1.5배)
     if (!victim) {
       car.vx += j / mA * nx; car.vz += j / mA * nz;
       const rx = best.cx - car.x, rz = best.cz - car.z;
-      car.yawRate += clamp((rz * nx - rx * nz) * j / (mA * 3), -2.5, 2.5);
-      car.bumpT = 0.3;
+      car.yawRate += clamp((rz * nx - rx * nz) * j / (mA * 3), -3.75, 3.75);
+      car.bumpT = 0.45;
     }
     if (striker) {
       let dvx = -j / mB * nx, dvz = -j / mB * nz;
-      const mag = Math.hypot(dvx, dvz) || 1, want = Math.max(mag * 1.25, 6);
+      const mag = Math.hypot(dvx, dvz) || 1, want = Math.max(mag * 1.25, 9);
       dvx *= want / mag; dvz *= want / mag;
       const rx = best.cx - p.disp.x, rz = best.cz - p.disp.z;
-      const w = clamp((rz * dvx - rx * dvz) / 2.5, -3.5, 3.5);
-      send({ t: 'bump', to: p.id, dv: [Math.round(dvx * 100) / 100, Math.round(dvz * 100) / 100], w: Math.round(w * 100) / 100 });
+      const w = clamp((rz * dvx - rx * dvz) / 2.5 * 1.5, -5.25, 5.25);
+      const r2 = v => Math.round(v * 100) / 100;
+      send({ t: 'bump', to: p.id, dv: [r2(dvx), r2(dvz)], w: r2(w), me: [r2(car.x), r2(car.y), r2(car.z), r2(car.yaw), r2(car.pitch), r2(car.roll), r2(car.vf), r2(car.steer), 0, 0, r2(car.vx), r2(car.vz)] });
     }
     hit = Math.max(hit, -rv);
     for (let i = 0; i < 8; i++) spawnPart(best.cx, car.y + 0.8, best.cz, (Math.random() - 0.5) * 8, Math.random() * 5, (Math.random() - 0.5) * 8, i % 2 ? 0xffd040 : 0xffffff, 0.4, 0.7);
@@ -565,6 +566,8 @@ function updateCamera(dt) {
   const sp = Math.hypot(C.vx, C.vz);
   let targetYaw = C.yaw;
   if (C.vf < -3) targetYaw = C.yaw; // 후진 중에도 뒤에서
+  const lookBack = !!(keys.KeyB || touch.back) && C === car;
+  if (lookBack) { targetYaw = C.yaw + Math.PI; camState.yaw = targetYaw; }
   if (!camState.init) { camState.yaw = C.yaw; camState.y = C.y; camState.init = true; }
   camState.yaw = angLerp(camState.yaw, targetYaw, Math.min(1, dt * (3 + sp * 0.05)));
   camState.y = lerp(camState.y, C.y, Math.min(1, dt * (C.grounded ? 8 : 3)));
@@ -620,31 +623,47 @@ function removePlayer(id) {
 }
 function clearPlayers() { for (const id of [...G.players.keys()]) removePlayer(id); }
 
+// 원격 차는 받은 상태가 이미 (상대 업로드 + 서버 + 내 다운로드) 만큼 늦은 것이라,
+// 속도와 회전 속도로 "지금" 위치를 예측해서 그린다. 새 상태가 오면 순간이동 대신 부드럽게 보정.
+function remoteLead() { return clamp((G.rtt || 120) + 45, 30, 450); }
 function updateRemotes(now, dt) {
-  const rt = now - 120;
+  const lead = remoteLead();
   for (const p of G.players.values()) {
     const s = p.snaps;
     if (!s.length) continue;
-    while (s.length > 2 && s[1].t < rt - 500) s.shift();
-    let a = s[0], b = null;
-    for (let i = s.length - 1; i >= 0; i--) if (s[i].t <= rt) { a = s[i]; b = s[i + 1] || null; break; }
-    const d = a.d;
-    let x, y, z, yaw, pitch, roll, v, steer, vx, vz;
-    if (b && rt >= a.t) {
-      const f = clamp((rt - a.t) / Math.max(1, b.t - a.t), 0, 1), e = b.d;
-      x = lerp(d[0], e[0], f); y = lerp(d[1], e[1], f); z = lerp(d[2], e[2], f);
-      yaw = angLerp(d[3], e[3], f); pitch = lerp(d[4], e[4], f); roll = lerp(d[5], e[5], f);
-      v = lerp(d[6], e[6], f); steer = lerp(d[7], e[7], f);
-      vx = e[10] ?? Math.sin(yaw) * v; vz = e[11] ?? Math.cos(yaw) * v;
-    } else {
-      const ex = clamp((rt - a.t) / 1000, 0, 0.25);
-      x = d[0] + Math.sin(d[3]) * d[6] * ex; y = d[1]; z = d[2] + Math.cos(d[3]) * d[6] * ex;
-      yaw = d[3]; pitch = d[4]; roll = d[5]; v = d[6]; steer = d[7];
-      vx = d[10] ?? Math.sin(yaw) * v; vz = d[11] ?? Math.cos(yaw) * v;
+    while (s.length > 4) s.shift();
+    const last = s[s.length - 1], d = last.d;
+    const ex = clamp((now - last.t + (last.lead ?? lead)) / 1000, 0, 0.5);
+    let wr = 0, vy = 0;
+    if (s.length > 1) {
+      const pr = s[s.length - 2], st = (last.t - pr.t) / 1000;
+      if (st > 0.02 && st < 0.5) {
+        let dy = d[3] - pr.d[3]; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI;
+        wr = clamp(dy / st, -3.5, 3.5);
+        vy = clamp((d[1] - pr.d[1]) / st, -40, 40);
+      }
     }
-    const flags = s[s.length - 1].d[8] | 0;
-    p.prog = s[s.length - 1].d[9] || 0;
-    p.disp = { x, y, z, yaw, pitch, roll, v, steer, vx, vz, drift: !!(flags & 4), boost: !!(flags & 2) };
+    let x = d[0], z = d[2], yaw = d[3], vx = d[10] ?? Math.sin(d[3]) * d[6], vz = d[11] ?? Math.cos(d[3]) * d[6];
+    const N = 4, h = ex / N;
+    for (let k = 0; k < N; k++) {
+      const c = Math.cos(wr * h), sn = Math.sin(wr * h), nvx = vx * c + vz * sn, nvz = -vx * sn + vz * c;
+      vx = nvx; vz = nvz; x += vx * h; z += vz * h; yaw += wr * h;
+    }
+    const gh0 = W.groundHeight(d[0], d[2], d[1] + 1);
+    let y;
+    if (d[1] - gh0 < 0.4) y = W.groundHeight(x, z, d[1] + 1.5);
+    else y = Math.max(W.groundHeight(x, z, d[1] + 1), d[1] + vy * ex - 12 * ex * ex);
+    // 화면 위치: 지난 화면 위치를 속도만큼 움직인 뒤 예측 위치로 당김 (멀면 바로 이동)
+    const prev = p.disp;
+    if (prev && !prev.hidden && Math.hypot(prev.x - x, prev.z - z) < 12) {
+      const k = 1 - Math.exp(-dt * 12);
+      const px = prev.x + prev.vx * dt, pz = prev.z + prev.vz * dt;
+      x = px + (x - px) * k; z = pz + (z - pz) * k; y = prev.y + (y - prev.y) * Math.min(1, k * 1.5);
+      yaw = angLerp(prev.yaw, yaw, k);
+    }
+    const flags = d[8] | 0;
+    p.prog = d[9] || 0;
+    p.disp = { x, y, z, yaw, pitch: d[4], roll: d[5], v: d[6], steer: d[7], vx, vz, drift: !!(flags & 4), boost: !!(flags & 2) };
     p.flags = flags;
     p.disp.hidden = !!(flags & 64);
     p.model.root.visible = !p.disp.hidden;
@@ -724,7 +743,10 @@ function onMsg(m) {
       for (const id in m.ps) {
         if (id === G.myId) continue;
         const p = G.players.get(id);
-        if (p) { p.snaps.push({ t: now, d: m.ps[id] }); if (p.snaps.length > 30) p.snaps.shift(); }
+        if (!p) continue;
+        const d = m.ps[id], l = p.snaps[p.snaps.length - 1];
+        if (l && l.d[0] === d[0] && l.d[2] === d[2] && l.d[3] === d[3] && l.d[8] === d[8]) continue;
+        p.snaps.push({ t: now, d }); if (p.snaps.length > 6) p.snaps.shift();
       }
       break;
     }
@@ -756,16 +778,24 @@ function onMsg(m) {
     case 'raceEnd': onRaceEnd(m); break;
     case 'bump': {
       if (!car.model || !Array.isArray(m.dv)) break;
-      car.vx += clamp(+m.dv[0] || 0, -40, 40); car.vz += clamp(+m.dv[1] || 0, -40, 40);
-      car.yawRate += clamp(+m.w || 0, -4, 4);
-      car.bumpT = 0.8;
+      car.vx += clamp(+m.dv[0] || 0, -60, 60); car.vz += clamp(+m.dv[1] || 0, -60, 60);
+      car.yawRate += clamp(+m.w || 0, -6, 6);
+      car.bumpT = 0.9;
+      // 들이받은 차를 그 순간 실제 위치로 맞춰 그림 → 내 화면에서도 닿아서 밀린 게 보임
+      const sp = G.players.get(m.from);
+      if (sp && Array.isArray(m.me) && m.me.length >= 12 && m.me.every(Number.isFinite)) {
+        const last = sp.snaps[sp.snaps.length - 1];
+        const d = m.me.slice(); if (last) { d[8] = last.d[8]; d[9] = last.d[9]; }
+        sp.snaps.push({ t: performance.now(), d, lead: (G.rtt || 120) * 0.5 + 10 });
+        if (sp.disp) { sp.disp.x = d[0]; sp.disp.z = d[2]; sp.disp.yaw = d[3]; }
+      }
       const k = Math.hypot(m.dv[0], m.dv[1]);
       sfx.crash(k * 2); camState.shake = Math.min(0.7, k * 0.05);
       for (let i = 0; i < 8; i++) spawnPart(car.x, car.y + 1, car.z, (Math.random() - 0.5) * 8, Math.random() * 5, (Math.random() - 0.5) * 8, i % 2 ? 0xffd040 : 0xffffff, 0.4, 0.7);
       break;
     }
     case 'cpSync': if (G.race) G.race.c = m.c; break;
-    case 'pong': break;
+    case 'pong': if (Number.isFinite(m.n)) { const r = Date.now() - m.n; if (r >= 0 && r < 3000) G.rtt = G.rtt ? G.rtt * 0.7 + r * 0.3 : r; } break;
   }
 }
 
@@ -1099,6 +1129,7 @@ function syncSettingsUI() {
   $('mVol').value = settings.vol;
   document.querySelectorAll('#mSteer button').forEach(b => b.classList.toggle('on', b.dataset.v === settings.steer));
   document.querySelectorAll('#mAuto button').forEach(b => b.classList.toggle('on', +b.dataset.v === +settings.autoGas));
+  document.querySelectorAll('#mMirror button').forEach(b => b.classList.toggle('on', +b.dataset.v === +settings.mirror));
 }
 
 /* ---------- 차고 ---------- */
@@ -1278,6 +1309,7 @@ document.querySelectorAll('#mShadow button').forEach(b => b.onclick = () => {
   syncSettingsUI();
 });
 document.querySelectorAll('#mSteer button').forEach(b => b.onclick = () => { settings.steer = b.dataset.v; saveSettings(); applyTouchSettings(); syncSettingsUI(); });
+document.querySelectorAll('#mMirror button').forEach(b => b.onclick = () => { settings.mirror = +b.dataset.v; saveSettings(); syncSettingsUI(); });
 document.querySelectorAll('#mAuto button').forEach(b => b.onclick = () => { settings.autoGas = +b.dataset.v; saveSettings(); applyTouchSettings(); syncSettingsUI(); });
 applyTouchSettings();
 $('mVol').oninput = () => { settings.vol = +$('mVol').value; setVolume(settings.vol / 100 * 0.8); saveSettings(); };
@@ -1309,6 +1341,51 @@ async function setupGoogle() {
   google.accounts.id.renderButton($('gbtn'), { theme: 'filled_black', size: 'large', text: 'signin_with', shape: 'rectangular', locale: 'ko', width: 300 });
 }
 
+/* ================= 후방 거울 ================= */
+// 뒤쪽을 작은 렌더 타깃에 그린 뒤, 좌우를 뒤집어 화면 위쪽 가운데에 붙인다 (진짜 거울처럼)
+const mirror = { rt: new THREE.WebGLRenderTarget(320, 96, { depthBuffer: true }), cam: new THREE.PerspectiveCamera(50, 320 / 96, 0.5, 300), frame: 0 };
+mirror.rt.texture.magFilter = THREE.NearestFilter; mirror.rt.texture.minFilter = THREE.NearestFilter; mirror.rt.texture.colorSpace = THREE.SRGBColorSpace;
+mirror.scene = new THREE.Scene();
+mirror.ortho = new THREE.OrthographicCamera(0, 1, 1, 0, -1, 1);
+{
+  const tex = mirror.rt.texture; tex.repeat.x = -1; tex.offset.x = 1;
+  mirror.border = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x15151a, depthTest: false }));
+  mirror.view = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, depthTest: false }));
+  mirror.view.renderOrder = 1;
+  mirror.scene.add(mirror.border, mirror.view);
+}
+const mirrorSize = new THREE.Vector2();
+function mirrorOn() {
+  if (G.screen !== 'play' || !car.model || GP.spectating() || G.bigmap) return false;
+  return settings.mirror === 2 || (settings.mirror === 1 && (GP.inRace() || !!(G.race && G.race.inRace)));
+}
+function renderMirror() {
+  if (!mirrorOn()) return;
+  const fx = Math.sin(car.yaw), fz = Math.cos(car.yaw), top = car.shape ? car.shape.top : 1.6;
+  mirror.cam.position.set(car.x + fx * 0.3, car.y + top + 0.9, car.z + fz * 0.3);
+  mirror.cam.lookAt(car.x - fx * 40, car.y + 1.2, car.z - fz * 40);
+  // 거울 속 화면은 두 프레임에 한 번만 새로 그림 (휴대폰 부담 줄이기)
+  if ((mirror.frame++ & 1) === 0 || !COARSE) {
+    const sm = renderer.shadowMap.autoUpdate;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.setRenderTarget(mirror.rt);
+    renderer.render(scene, mirror.cam);
+    renderer.setRenderTarget(null);
+    renderer.shadowMap.autoUpdate = sm;
+  }
+  renderer.getSize(mirrorSize);
+  const Wd = mirrorSize.x, Hd = mirrorSize.y, cssK = Wd / Math.max(1, innerWidth);
+  const mw = Math.min(Wd * (Wd > Hd ? 0.3 : 0.56), 420 * cssK), mh = mw * 96 / 320;
+  const cx = Wd / 2, cy = Hd - (GP.active ? 92 : 64) * cssK - mh / 2, b = Math.max(2, 3 * cssK);
+  mirror.ortho.right = Wd; mirror.ortho.top = Hd; mirror.ortho.updateProjectionMatrix();
+  mirror.border.position.set(cx, cy, 0); mirror.border.scale.set(mw + b * 2, mh + b * 2, 1);
+  mirror.view.position.set(cx, cy, 0); mirror.view.scale.set(mw, mh, 1);
+  const ac = renderer.autoClear;
+  renderer.autoClear = false;
+  renderer.render(mirror.scene, mirror.ortho);
+  renderer.autoClear = ac;
+}
+
 /* ================= 메인 루프 ================= */
 let last = performance.now(), acc = 0;
 const STEP = 1 / 60;
@@ -1330,7 +1407,7 @@ function frame() {
     const sp = Math.hypot(car.vx, car.vz);
     $('spd').textContent = Math.round(sp * 3.6);
     engine(sp / car.def.maxV, car.input?.up ? 1 : 0, true);
-    if (now - G.lastSend > 66) {
+    if (now - G.lastSend > 50) {
       G.lastSend = now;
       const r2 = v => Math.round(v * 100) / 100;
       const flags = (car.input?.down ? 1 : 0) | (car.boostT > 0 ? 2 : 0) | (car.drifting ? 4 : 0) | (GP.active ? GP.flags() : 0);
@@ -1344,6 +1421,7 @@ function frame() {
   T.boost.offset.y = (T.boost.offset.y - dt * 1.5) % 1;
   updateCamera(dt);
   renderer.render(scene, camera);
+  renderMirror();
   drawMaps();
   if (G.garageOpen && prev.renderer) renderPreview(dt);
 }
@@ -1351,7 +1429,7 @@ function frame() {
 /* ================= 시작 ================= */
 initGP({ scene, camera, hemi, sun, T, car, G, send, spawnCar, toast, bigText, sfx, fmtTime, esc, colorCss, worldRoot, coinGroup, spawnPart, camState, openGarage, leaveRoom: () => $('mLeave').click() });
 if (COARSE) setTouch(true);
-window.__pr = { G, car, keys, touch, spawnCar, physics, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); } } };
+window.__pr = { G, car, keys, touch, spawnCar, physics, updateRemotes, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); } } };
 // 서버 설정은 기다리지 않고 따로 받음 (무료 서버가 자고 있으면 깨는 데 1분쯤 걸려서, 그동안 화면이 멈춘 것처럼 보이지 않게)
 $('offlineBtn').onclick = () => goOffline();
 requestAnimationFrame(frame);
@@ -1364,4 +1442,5 @@ connect();
 })();
 document.getElementById('bootFail')?.remove();
 window.__booted = true;
-setInterval(() => send({ t: 'ping', n: Date.now() }), 20000);
+setInterval(() => send({ t: 'ping', n: Date.now() }), G.room ? 3000 : 20000);
+setInterval(() => { if (G.room) send({ t: 'ping', n: Date.now() }); }, 3000);

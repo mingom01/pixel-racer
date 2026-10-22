@@ -1,7 +1,7 @@
 // 레이싱 방 (그랑프리) 클라이언트: 경기장, 대기실, 예선/결승, 아이템전/스피드전, 결과
 import * as THREE from './lib/three.module.min.js';
-import { canvasOf, tex } from './tex.js?v=mvj4y0wt';
-import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mvj4y0wt';
+import { canvasOf, tex } from './tex.js?v=mvjkx9vu';
+import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mvjkx9vu';
 
 const W = WORLD;
 const $ = id => document.getElementById(id);

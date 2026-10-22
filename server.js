@@ -342,7 +342,7 @@ function handle(c, msg) {
     case 's': {
       if (!r || !Array.isArray(msg.d)) return;
       const d = msg.d.slice(0, 12).map(v => +v || 0);
-      c.st = d; c.pos.x = d[0]; c.pos.y = d[1]; c.pos.z = d[2];
+      c.st = d; c.stNew = true; c.pos.x = d[0]; c.pos.y = d[1]; c.pos.z = d[2];
       break;
     }
     case 'rooms': sendRooms(c); break;
@@ -425,8 +425,9 @@ function handle(c, msg) {
       // 범퍼카: 들이받은 쪽이 맞은 차에 밀림 전달
       const o = r && r.clients.get(String(msg.to));
       if (!o || o === c || !Array.isArray(msg.dv)) return;
-      const lim = v => Math.max(-40, Math.min(40, +v || 0));
-      o.send({ t: 'bump', from: c.id, dv: [lim(msg.dv[0]), lim(msg.dv[1])], w: Math.max(-4, Math.min(4, +msg.w || 0)) });
+      const lim = v => Math.max(-60, Math.min(60, +v || 0));
+      const me = Array.isArray(msg.me) && msg.me.length === 12 && msg.me.every(v => Number.isFinite(v)) ? msg.me : null;
+      o.send({ t: 'bump', from: c.id, dv: [lim(msg.dv[0]), lim(msg.dv[1])], w: Math.max(-6, Math.min(6, +msg.w || 0)), me });
       break;
     }
     case 'race': {
@@ -451,9 +452,10 @@ function handle(c, msg) {
 setInterval(() => {
   const now = Date.now();
   for (const r of rooms.values()) {
-    const ps = {};
+    const ps = {}, full = now - (r.fullAt || 0) > 1000;
+    if (full) r.fullAt = now;
     let any = false;
-    for (const c of r.clients.values()) if (c.st) { ps[c.id] = c.st; any = true; }
+    for (const c of r.clients.values()) if (c.st && (c.stNew || full)) { ps[c.id] = c.st; c.stNew = false; any = true; }
     if (any) broadcast(r, { t: 'st', ps });
     const up = [];
     for (const [id, at] of r.coinsDown) if (now >= at) { r.coinsDown.delete(id); up.push(id); }
@@ -461,7 +463,7 @@ setInterval(() => {
     if (r.race) checkRaceEnd(r);
     if (r.kind === 'gp') GP.tick(r, now);
   }
-}, 66);
+}, 50);
 
 setInterval(() => {
   if (!lobbyDirty) return;
