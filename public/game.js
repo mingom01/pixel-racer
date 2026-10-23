@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mvkyh30a';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvkyh30a';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvkyh30a';
-import { makeLocalServer } from './local.js?v=mvkyh30a';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvkyh30a';
+import { makeTextures } from './tex.js?v=mvkyngg6';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvkyngg6';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvkyngg6';
+import { makeLocalServer } from './local.js?v=mvkyngg6';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvkyngg6';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -683,7 +683,7 @@ function updateCamera(dt) {
 function addPlayer(info) {
   let p = G.players.get(info.id);
   if (!p) { p = { id: info.id, snaps: [], disp: null, prog: 0 }; G.players.set(info.id, p); }
-  Object.assign(p, { name: info.name, car: info.car, color: info.color });
+  Object.assign(p, { name: info.name, car: info.car, color: info.color, ver: info.ver || '' });
   if (p.model) scene.remove(p.model.root);
   p.model = makeCar(p.car, p.color);
   p.shape = carShape(p.car);
@@ -764,6 +764,14 @@ let reconnectTimer = null;
 // 접속할 게임 서버: 게임 서버가 준 페이지면 그 서버, GitHub Pages(github.io)면 net-config.js 의 PR_SERVER(Render).
 // PR_SERVER 가 비어 있으면 혼자 하기(오프라인).
 const MY_VER = (import.meta.url.match(/[?&]v=(\w+)/) || [])[1] || '';
+// 버전 표시: 만든 시각(버전 글자에 들어 있음) + 서버와 같은지
+function verTime(v) { const t = parseInt(v, 36); if (!t) return ''; const d = new Date(t); return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+function showVer() {
+  const el = document.getElementById('verTag'); if (!el) return;
+  const same = !G.serverVer || G.serverVer === MY_VER, newer = G.serverVer && (parseInt(G.serverVer, 36) > parseInt(MY_VER, 36));
+  el.innerHTML = `버전 ${verTime(MY_VER) || '개발용'} · ${G.offline ? '혼자 하기' : (!G.serverVer ? '서버 확인 중' : (same ? '<b class="ok">최신</b>' : (newer ? '<b class="bad">새 버전 있음 - 새로고침</b>' : '<b class="bad">서버 업데이트 중</b>')))}`;
+  const m2 = document.getElementById('mVer'); if (m2) m2.innerHTML = el.innerHTML;
+}
 const SERVER = location.hostname.endsWith('github.io') ? (window.PR_SERVER || '').replace(/\/+$/, '') : location.origin;
 const WS_URL = SERVER.replace(/^http/, 'ws');
 let everOpened = false;
@@ -773,6 +781,7 @@ function goOffline() {
   if (G.ws && !G.ws.offline) { G.ws.onclose = null; try { G.ws.close(); } catch (e) { /* ignore */ } }
   $('conn').classList.add('hidden');
   document.body.classList.add('offline');
+  showVer();
   G.ws = makeLocalServer(onMsg);
 }
 function connect() {
@@ -808,6 +817,7 @@ function onMsg(m) {
   if (m.t.startsWith('gp') || m.t === 'gi') { gpMsg(m); return; }
   switch (m.t) {
     case 'ver': {
+      G.serverVer = m.v; showVer();
       // 서버보다 내 파일이 예전 것이면 새로고침 (한 번만). 내가 더 새것이면 서버가 업데이트 중
       const mine = parseInt(MY_VER, 36) || 0, srv = parseInt(m.v, 36) || 0;
       if (mine && srv && mine < srv) {
@@ -1135,6 +1145,7 @@ function showScreen(s) {
   $('login').classList.toggle('hidden', s !== 'login');
   $('lobby').classList.toggle('hidden', s !== 'lobby');
   $('hud').classList.toggle('hidden', s !== 'play');
+  document.body.classList.toggle('playing', s === 'play');
   $('touch').classList.toggle('hidden', !(s === 'play' && G.touch));
   if (s === 'play') { keepAwake(); if (G.touch && innerHeight > innerWidth && !G.rotHint) { G.rotHint = true; setTimeout(() => toast('휴대폰을 가로로 눕히면 더 넓게 보여요'), 1500); } }
   if (s !== 'play') { $('bigmap').classList.add('hidden'); G.bigmap = false; }
@@ -1185,7 +1196,7 @@ function renderRooms(list) {
 function renderPlayerList() {
   if (!G.room || !G.me) return;
   const rows = [{ id: G.myId, name: G.me.name, color: G.me.color }, ...[...G.players.values()]];
-  $('plist').innerHTML = rows.map(p => `<div><span class="dot" style="background:${colorCss(p.color)}"></span>${esc(p.name)}${p.id === G.hostId ? ' <span class="tag">방장</span>' : ''}${p.id === G.myId ? ' <span class="muted">(나)</span>' : ''}</div>`).join('')
+  $('plist').innerHTML = rows.map(p => `<div><span class="dot" style="background:${colorCss(p.color)}"></span>${esc(p.name)}${p.id === G.hostId ? ' <span class="tag">방장</span>' : ''}${p.id === G.myId ? ' <span class="muted">(나)</span>' : ''}${p.id !== G.myId && p.ver && MY_VER && p.ver !== MY_VER ? ' <span class="tag old">버전 다름</span>' : ''}</div>`).join('')
     + `<div style="margin-top:4px"><button class="btn small" id="menuBtn2" style="width:100%">${G.touch ? '메뉴' : '메뉴 (Esc)'}</button></div>`;
   $('menuBtn2').onclick = () => toggleMenu();
 }
@@ -1550,6 +1561,7 @@ connect();
   setupGoogle();
 })();
 document.getElementById('bootFail')?.remove();
+showVer();
 window.__booted = true;
 setInterval(() => send({ t: 'ping', n: Date.now() }), G.room ? 3000 : 20000);
 setInterval(() => { if (G.room) send({ t: 'ping', n: Date.now() }); }, 3000);

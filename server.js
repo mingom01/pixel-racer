@@ -157,7 +157,7 @@ function roomInfo(r) {
 }
 function playerInfo(c) {
   const u = c.user;
-  return { id: c.id, name: u.name, car: u.car, color: u.color };
+  return { id: c.id, name: u.name, car: u.car, color: u.color, ver: c.ver || '' };
 }
 function broadcast(r, obj, except) {
   const s = JSON.stringify(obj);
@@ -339,7 +339,7 @@ function handle(c, msg) {
   if (msg.t === 'auth') { handleAuth(c, msg); return; }
   if (msg.t === 'ping') { c.send({ t: 'pong', n: msg.n }); return; }
   // 버전 확인: 예전 파일을 쓰는 사람은 새로고침 (코스 위치 등이 달라서 서로 안 보일 수 있음)
-  if (msg.t === 'ver') { if (SERVER_VER && typeof msg.v === 'string') c.send({ t: 'ver', v: SERVER_VER }); return; }
+  if (msg.t === 'ver') { if (typeof msg.v === 'string') c.ver = msg.v.slice(0, 16); if (SERVER_VER) c.send({ t: 'ver', v: SERVER_VER }); return; }
   if (!c.uid) return;
   const u = c.user, r = c.room;
   switch (msg.t) {
