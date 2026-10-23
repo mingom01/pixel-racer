@@ -44,6 +44,8 @@ async function verifyGoogle(idToken) {
   return info;
 }
 
+// 지금 배포된 화면 파일 버전 (bump.js 가 index.html 에 붙인 ?v=)
+const SERVER_VER = (() => { try { return (fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').match(/game\.js\?v=(\w+)/) || [])[1] || ''; } catch (e) { return ''; } })();
 /* ---------- HTTP ---------- */
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]);
@@ -336,6 +338,8 @@ function handle(c, msg) {
   if (!msg || typeof msg.t !== 'string') return;
   if (msg.t === 'auth') { handleAuth(c, msg); return; }
   if (msg.t === 'ping') { c.send({ t: 'pong', n: msg.n }); return; }
+  // 버전 확인: 예전 파일을 쓰는 사람은 새로고침 (코스 위치 등이 달라서 서로 안 보일 수 있음)
+  if (msg.t === 'ver') { if (SERVER_VER && typeof msg.v === 'string') c.send({ t: 'ver', v: SERVER_VER }); return; }
   if (!c.uid) return;
   const u = c.user, r = c.room;
   switch (msg.t) {

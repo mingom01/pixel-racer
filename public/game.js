@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mvky81gh';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvky81gh';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvky81gh';
-import { makeLocalServer } from './local.js?v=mvky81gh';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvky81gh';
+import { makeTextures } from './tex.js?v=mvkyh30a';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvkyh30a';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvkyh30a';
+import { makeLocalServer } from './local.js?v=mvkyh30a';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvkyh30a';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -763,6 +763,7 @@ function send(o) { if (G.ws && G.ws.readyState === 1) G.ws.send(JSON.stringify(o
 let reconnectTimer = null;
 // 접속할 게임 서버: 게임 서버가 준 페이지면 그 서버, GitHub Pages(github.io)면 net-config.js 의 PR_SERVER(Render).
 // PR_SERVER 가 비어 있으면 혼자 하기(오프라인).
+const MY_VER = (import.meta.url.match(/[?&]v=(\w+)/) || [])[1] || '';
 const SERVER = location.hostname.endsWith('github.io') ? (window.PR_SERVER || '').replace(/\/+$/, '') : location.origin;
 const WS_URL = SERVER.replace(/^http/, 'ws');
 let everOpened = false;
@@ -786,6 +787,7 @@ function connect() {
   }, 1500);
   ws.onopen = () => {
     everOpened = true;
+    send({ t: 'ver', v: MY_VER });
     $('conn').classList.add('hidden');
     if (G.session) send({ t: 'auth', session: G.session });
     else showScreen('login');
@@ -805,6 +807,16 @@ function connect() {
 function onMsg(m) {
   if (m.t.startsWith('gp') || m.t === 'gi') { gpMsg(m); return; }
   switch (m.t) {
+    case 'ver': {
+      // 서버보다 내 파일이 예전 것이면 새로고침 (한 번만). 내가 더 새것이면 서버가 업데이트 중
+      const mine = parseInt(MY_VER, 36) || 0, srv = parseInt(m.v, 36) || 0;
+      if (mine && srv && mine < srv) {
+        let tried = 0; try { tried = +sessionStorage.getItem('pr_reload_' + m.v) || 0; } catch (e) { /* 무시 */ }
+        if (!tried) { try { sessionStorage.setItem('pr_reload_' + m.v, '1'); } catch (e) { /* 무시 */ } toast('새 버전으로 바꾸는 중...'); setTimeout(() => location.reload(), 600); }
+        else toast('새 버전이 나왔어요. 새로고침(Ctrl+Shift+R)을 해 주세요. 친구와 버전이 다르면 서로 안 보일 수 있어요.');
+      } else if (mine && srv && mine > srv) toast('서버가 업데이트 중이에요. 잠시 뒤 친구와 같이 새로고침해 주세요.');
+      break;
+    }
     case 'authed':
       G.session = m.session; if (!G.offline) lsSet('pr_session', m.session);
       G.me = m.profile;
