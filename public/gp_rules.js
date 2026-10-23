@@ -6,8 +6,19 @@ const QUALI_ENV = (typeof process !== 'undefined' && +process.env.GP_QUALI_MS) |
 // 예선 시간: 코스가 길수록 길게 (대략 두 바퀴 이상 돌 수 있게)
 function qualiMs(t) { return QUALI_ENV || Math.round(Math.max(75000, Math.min(240000, t.length / 40 * 1000 * 1.9 + 15000)) / 1000) * 1000; }
 
-function makeGP({ W, broadcast, save, profileOf, log }) {
+function makeGP({ W, broadcast, save, profileOf, log, records }) {
   const ARENA_IDS = W.arenas.map(a => a.id);
+  // 랜덤 선택지: random 전체, random:easy 난이도 1~2, random:mid 3, random:hard 4~5
+  const RANDOM = { random: [1, 5], 'random:easy': [1, 2], 'random:mid': [3, 3], 'random:hard': [4, 5] };
+  const pickTrack = set => {
+    const rg = RANDOM[set.track];
+    if (!rg) return set.track;
+    const ids = W.arenas.filter(a => a.diff >= rg[0] && a.diff <= rg[1]).map(a => a.id);
+    return ids[Math.floor(Math.random() * ids.length)] || ARENA_IDS[0];
+  };
+  // 트랙 기록 { 코스 id: { time, name, car, at } } (서버가 계정 저장소에 같이 저장)
+  const REC = () => (records ? records() : null) || {};
+  const recView = () => { const o = {}, R = REC(); for (const k in R) o[k] = { time: R[k].time, name: R[k].name, car: R[k].car }; return o; };
   let objSeq = 0;
 
   function init(r) {
@@ -26,7 +37,7 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
   function state(r) {
     const g = r.gp;
     return {
-      phase: g.phase, set: g.set, host: r.hostId, races: g.races,
+      phase: g.phase, set: g.set, host: r.hostId, races: g.races, cur: g.curTrack || null, records: recView(),
       players: [...r.clients.values()].filter(c => g.pl.has(c.id)).map(c => {
         const p = g.pl.get(c.id), u = c.user;
         return { id: c.id, name: u.name, car: u.car, color: u.color, ready: p.ready, team: p.team, pts: p.pts, wins: p.wins, spec: p.spec };
@@ -62,22 +73,24 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
     const g = r.gp, now = Date.now();
     const racers = new Map();
     order.forEach((id, k) => racers.set(id, { slot: k, c: 0, done: false, lapStart: 0, laps: [], best: null }));
-    const qms = qualiMs(W.trackById[g.set.track]);
+    const track = g.curTrack || pickTrack(g.set);
+    const qms = qualiMs(W.trackById[track]);
     g.run = {
-      phase, track: g.set.track, laps: g.set.laps, mode: g.set.mode, team: g.set.team,
+      phase, track, laps: g.set.laps, mode: g.set.mode, team: g.set.team,
       startAt: now + (phase === 'quali' ? 3500 : 5000), endAt: phase === 'quali' ? now + 3500 + qms : 0,
       racers, finished: [], firstFin: 0, fastest: null, size: racers.size,
     };
     g.phase = phase;
     broadcast(r, { t: 'gpRun', run: runInfo(r, now) });
     push(r);
-    log(`방 ${r.code} ${phase === 'quali' ? '예선' : '결승'} 시작 (${g.set.track}, ${racers.size}명)`);
+    log(`방 ${r.code} ${phase === 'quali' ? '예선' : '결승'} 시작 (${track}, ${racers.size}명)`);
   }
 
   function start(r) {
     const g = r.gp;
     const ids = [...r.clients.keys()].filter(id => g.pl.has(id));
     for (const id of ids) g.pl.get(id).spec = false;
+    g.curTrack = pickTrack(g.set);
     begin(r, g.set.quali ? 'quali' : 'race', shuffle(ids));
   }
 
@@ -99,7 +112,15 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
         p.laps.push(lt);
         if (!p.best || lt < p.best) p.best = lt;
         if (!run.fastest || lt < run.fastest.time) run.fastest = { id: c.id, name: c.user.name, time: lt };
-        broadcast(r, { t: 'gpLap', id: c.id, lap: p.laps.length, time: lt, best: p.best, fastest: run.fastest });
+        // 트랙 신기록 (이 코스 역대 최고 랩)
+        let record = false;
+        const R = REC(), old = R[run.track];
+        if (lt > 5000 && (!old || lt < old.time)) {
+          R[run.track] = { time: lt, name: c.user.name, car: W.carById[c.user.car]?.name || '', at: Date.now() };
+          record = true; p.record = true; save();
+          broadcast(r, { t: 'gpRecord', track: run.track, time: lt, name: c.user.name, id: c.id, prev: old ? old.time : null });
+        }
+        broadcast(r, { t: 'gpLap', id: c.id, lap: p.laps.length, time: lt, best: p.best, fastest: run.fastest, record });
       }
     }
     if (run.phase === 'race' && p.c >= run.laps * n + 1) {
@@ -116,7 +137,7 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
     const g = r.gp, run = g.run;
     if (!run) return;
     const now = Date.now();
-    if (run.racers.size === 0) { g.run = null; g.phase = 'lobby'; broadcast(r, { t: 'gpEnd', cancelled: true }); push(r); return; }
+    if (run.racers.size === 0) { g.run = null; g.phase = 'lobby'; g.curTrack = null; broadcast(r, { t: 'gpEnd', cancelled: true }); push(r); return; }
     if (run.phase === 'quali') { if (now >= run.endAt) endQuali(r); return; }
     const allDone = [...run.racers.values()].every(p => p.done);
     if (allDone || (run.endAt && now >= run.endAt)) endRace(r);
@@ -141,6 +162,7 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
     for (const [id, p] of dnf) results.push({ id, name: r.clients.get(id)?.user.name || '?', time: null, place: null, best: p.best, dnf: true });
     const mult = (0.25 + run.laps * 0.25) * Math.max(1, Math.min(2.5, W.trackById[run.track].length / 2600));
     for (const res of results) {
+      res.rec = !!run.racers.get(res.id)?.record;
       res.pts = res.place ? (POINTS[res.place - 1] || 0) : 0;
       res.fl = !!(run.fastest && run.fastest.id === res.id && res.place && res.place <= 10);
       if (res.fl) res.pts += 1;
@@ -164,7 +186,7 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
     }
     save();
     g.races++;
-    g.run = null; g.phase = 'results'; g.phaseEnd = now + 14000;
+    g.run = null; g.phase = 'results'; g.phaseEnd = now + 14000; g.curTrack = null;
     broadcast(r, { t: 'gpEnd', results, teams, fastest: run.fastest, laps: run.laps });
     push(r);
     log(`방 ${r.code} 결승 종료: ${results.map(x => x.name + (x.place ? x.place : 'DNF')).join(', ')}`);
@@ -194,7 +216,7 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
       case 'gpSet': {
         if (!host || g.phase !== 'lobby' || !msg.set) return;
         const s = msg.set;
-        if (ARENA_IDS.includes(s.track)) g.set.track = s.track;
+        if (ARENA_IDS.includes(s.track) || RANDOM[s.track]) g.set.track = s.track;
         if (s.mode === 'speed' || s.mode === 'item') g.set.mode = s.mode;
         if (typeof s.team === 'boolean') g.set.team = s.team;
         if (typeof s.quali === 'boolean') g.set.quali = s.quali;
@@ -226,7 +248,9 @@ function makeGP({ W, broadcast, save, profileOf, log }) {
     }
   }
 
-  return { init, join, leave, handle, tick, push };
+  // 대기실 연습 주행/입장 위치용 코스 (랜덤이면 진행 중인 코스 또는 첫 코스)
+  const lobbyTrack = r => r.gp.curTrack || (RANDOM[r.gp.set.track] ? ARENA_IDS[0] : r.gp.set.track);
+  return { init, join, leave, handle, tick, push, lobbyTrack };
 }
 
 if (typeof module !== 'undefined' && module.exports) module.exports = makeGP;

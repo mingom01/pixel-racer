@@ -21,13 +21,15 @@ export function makeLocalServer(onMsg) {
   const save = () => store(prof);
   const profileOf = () => ({ id: 'local', name: prof.name, coins: prof.coins, owned: prof.owned, car: prof.car, color: prof.color, google: false, races: prof.races || 0, wins: prof.wins || 0 });
   const broadcast = (r, obj, except) => { if (except !== me) me.send(obj); };
-  const GP = window.makeGP({ W, broadcast, save, profileOf, log: () => {} });
+  let REC = {};
+  try { REC = JSON.parse(localStorage.getItem('pr_records') || '{}'); } catch (e) { REC = {}; }
+  const GP = window.makeGP({ W, broadcast, save: () => { save(); try { localStorage.setItem('pr_records', JSON.stringify(REC)); } catch (e) { /* 무시 */ } }, profileOf, log: () => {}, records: () => REC });
   let room = null;
 
   function roomInfo(r) { return { code: r.code, name: r.name, pub: false, max: 1, n: 1, racing: !!r.race, host: 'me', kind: r.kind || 'free' }; }
   function join(r) {
     room = r; me.room = r;
-    const sp = r.kind === 'gp' ? W.gridSlot(W.trackById[r.gp.set.track], 0) : W.spawnPoint(0);
+    const sp = r.kind === 'gp' ? W.gridSlot(W.trackById[GP.lobbyTrack(r)], 0) : W.spawnPoint(0);
     me.pos = { x: sp.x, y: 0, z: sp.z };
     me.send({ t: 'joined', room: roomInfo(r), you: 'me', spawn: sp, players: [], coinsDown: [...r.coinsDown.keys()], race: null });
     if (r.kind === 'gp') GP.join(r, me);

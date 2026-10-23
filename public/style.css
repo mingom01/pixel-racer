@@ -362,3 +362,8 @@ body.touch #draft { bottom: calc(var(--ctl) + var(--tb) * 1.1 + 70px); }
 #ink i:nth-child(5) { left: 58%; top: 58%; width: 34vmin; height: 30vmin; }
 #ink i:nth-child(6) { left: 46%; top: 8%; width: 16vmin; height: 14vmin; }
 #flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s; }
+
+.fltime { color: #c87aff; }
+.gp-rec { color: #c87aff; }
+.gp-rec.flash { animation: recflash .5s steps(2) infinite; }
+@keyframes recflash { 50% { color: #fff; } }

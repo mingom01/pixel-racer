@@ -173,7 +173,7 @@ function joinRoom(c, r) {
   lobby.delete(c);
   r.clients.set(c.id, c);
   c.room = r;
-  const sp = r.kind === 'gp' ? W.gridSlot(W.trackById[r.gp.set.track], (r.clients.size - 1) % 12) : W.spawnPoint(r.clients.size - 1);
+  const sp = r.kind === 'gp' ? W.gridSlot(W.trackById[GP.lobbyTrack(r)], (r.clients.size - 1) % 12) : W.spawnPoint(r.clients.size - 1);
   c.pos = { x: sp.x, y: 0, z: sp.z };
   c.st = null;
   const now = Date.now();
@@ -471,7 +471,9 @@ setInterval(() => {
   for (const c of lobby) sendRooms(c);
 }, 500);
 
-GP = makeGP({ W, broadcast, save, profileOf, log });
+// 트랙 기록은 계정 저장소의 '__records' 줄에 같이 저장
+STORE.get('__records').then(d => { if (!d) STORE.users.__records = { tracks: {} }; }).catch(() => { STORE.users.__records = STORE.users.__records || { tracks: {} }; });
+GP = makeGP({ W, broadcast, save, profileOf, log, records: () => (STORE.users.__records = STORE.users.__records || { tracks: {} }).tracks });
 
 function log(s) { console.log(new Date().toLocaleTimeString() + '  ' + s); }
 

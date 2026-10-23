@@ -1,6 +1,6 @@
 // 레이싱 방 경기장 설계. 고친 뒤: node tools/trackgen.js
 // 방향: (0,0)에서 북쪽으로 출발, R = 오른쪽(시계 방향) 커브. 마지막엔 북쪽으로 (0,0)에 들어와야 함 (X 두 개가 길이를 맞춰 줌)
-module.exports = ({ S, R, L, U, X, RB }) => [
+module.exports = ({ S, R, L, U, X, RB, BG }) => [
   {
     id: 'kgp', stretch: 1.15, name: '코리아 그랑프리', theme: 'grass', diff: 2, w: 20,
     desc: '오르막 에스 커브, 터널, 시케인, 헤어핀이 다 있는 F1 서킷',
@@ -16,7 +16,7 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     desc: '모래 언덕을 넘나드는 랠리. 사막을 가로지르는 점프 지름길',
     segs: [
       S(400, { boost: 0.1 }), S(200, { e: 6, jump: [0.5, 3] }), R(90, 70, { e: 2 }), S(200, { e: 8, item: 0.5 }), S(200, { e: 0 }),
-      S(100, { label: 'A' }), R(90, 40), S(220, { e: 4 }), L(90, 40, { e: 6 }), S(180, { e: 8, item: 0.5 }), L(90, 40, { e: 6 }), S(220, { e: 2 }), R(90, 40, { e: 0 }), S(100, { label: 'B' }),
+      S(100, { label: 'A' }), BG('R', 140, { mid: { e: 8, item: 0.5 }, e: 0 }), S(100, { label: 'B' }),
       R(90, 80), S(300, { e: 6, jump: [0.4, 3.5], item: 0.8 }), S(200, { e: 0 }),
       R(90, 60), X({ item: 0.4 }), R(90, 60), X(),
     ],
@@ -51,7 +51,7 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     desc: '바위산 터널과 협곡 우회로. 바위 속 터널 지름길',
     segs: [
       S(400, { boost: 0.1, item: 0.6 }), S(200, { e: 8 }), R(90, 60, { e: 12 }), S(250, { e: 14, label: 'A' }),
-      R(90, 40, { e: 12 }), S(150, { e: 8 }), L(90, 40, { e: 6 }), S(200, { e: 6, item: 0.5 }), L(90, 40, { e: 8 }), S(150, { e: 12 }), R(90, 40, { e: 14 }), S(200, { e: 14, label: 'B' }),
+      BG('R', 120, { in: { e: 10 }, mid: { e: 8, item: 0.5 }, e: 14 }), S(200, { e: 14, label: 'B' }),
       R(90, 70, { e: 10 }), S(300, { e: 4, tunnel: true }), R(45, 80), L(45, 80), S(200, { e: 0, jump: [0.5, 3.5], item: 0.2 }),
       R(90, 60), X({ item: 0.5 }), R(90, 60), X(),
     ],
@@ -78,7 +78,7 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     desc: '직각 코너 컨테이너 골목, 부두 로타리. 컨테이너 속 지름길',
     segs: [
       S(400, { boost: 0.1, item: 0.6 }), R(90, 30), S(200, { e: 8 }), L(90, 30, { e: 10 }), S(150, { e: 10 }), R(90, 30, { e: 6 }),
-      S(200, { label: 'A', item: 0.5, e: 0 }), R(90, 30), S(200), L(90, 30), S(150), L(90, 30), S(200), R(90, 30), S(150, { label: 'B' }),
+      S(200, { label: 'A', item: 0.5, e: 0 }), BG('R', 120, { mid: { item: 0.6 } }), S(150, { label: 'B' }),
       RB(32, 'right'), S(300, { item: 0.5, e: 8, jump: [0.8, 3] }), R(90, 40, { e: 4 }), X({ e: 0 }), R(90, 40), X(),
     ],
     shortcuts: [{ from: 'A', to: 'B', w: 10, tunnel: true }],
@@ -96,7 +96,7 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     desc: '좁은 진흙길과 U턴, 동굴 터널. 정글을 뛰어넘는 점프 지름길',
     segs: [
       S(300, { boost: 0.15, e: 6 }), R(90, 40, { e: 8 }), S(150, { label: 'A', mud: [0.3, 40], e: 8 }),
-      R(90, 30), S(150), L(90, 30), S(120, { item: 0.5 }), L(90, 30), S(150), R(90, 30), S(100, { label: 'B', e: 8 }),
+      BG('R', 100, { mid: { item: 0.5 } }), S(100, { label: 'B', e: 8 }),
       R(90, 40, { e: 10 }), S(200, { tunnel: true, e: 12 }), S(150, { e: 4 }), U('L', 25), S(150, { item: 0.5 }), U('R', 25), S(200),
       R(90, 50, { e: 0 }), X({ mud: [0.4, 40], item: 0.6 }), R(90, 50), X(),
     ],
@@ -131,7 +131,7 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     desc: '좁은 공장 통로에 밀어내는 블록, 프레스, 회전 막대. 컨베이어 점프 지름길',
     segs: [
       S(300, { posts: [0.5, 5] }), R(90, 25), S(150, { mover: { k: 'slide', at: 0.5, period: 2.6 } }), L(90, 25), S(150, { item: 0.5 }), R(90, 25),
-      S(150, { label: 'A' }), R(90, 25), S(150, { mover: { k: 'crush', at: 0.5, period: 3.2 } }), L(90, 25), S(120, { oil: [0.2, 30] }), L(90, 25), S(150, { mover: { k: 'slide', at: 0.5, period: 2.2 } }), R(90, 25), S(150, { label: 'B' }),
+      S(150, { label: 'A' }), BG('R', 100, { in: { mover: { k: 'crush', at: 0.6, period: 3.2 } }, mid: { oil: [0.3, 30], item: 0.6 }, out: { mover: { k: 'slide', at: 0.4, period: 2.2 } } }), S(150, { label: 'B' }),
       R(90, 40, { e: 6 }), S(250, { e: 10, mover: { k: 'spin', at: 0.5, period: 4 }, item: 0.2 }), R(90, 40, { e: 10 }), X({ oil: [0.5, 30], item: 0.3, e: 2 }), R(90, 40), X(),
     ],
     shortcuts: [{ from: 'A', to: 'B', w: 9, jumps: [[0.5, 3]], e: 0 }],
@@ -149,7 +149,7 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     desc: '끊어진 협곡 다리 세 번. 출렁다리 점프 지름길까지',
     segs: [
       S(400, { boost: 0.1, item: 0.6 }), S(200, { e: 12 }), R(90, 70, { e: 14 }), S(350, { e: 14, gap: [0.5, 22, 3] }), R(90, 70, { e: 12 }),
-      S(150, { e: 10, label: 'A' }), L(90, 40), S(200, { e: 12, item: 0.5 }), R(90, 40), S(150, { e: 14 }), R(90, 40), S(200, { e: 12 }), L(90, 40), S(150, { e: 10, label: 'B' }),
+      S(150, { e: 10, label: 'A' }), BG('L', 120, { mid: { e: 14, item: 0.5 }, e: 10 }), S(150, { e: 10, label: 'B' }),
       S(300, { e: 12, gap: [0.5, 24, 3.2] }), R(90, 70, { e: 12 }), X({ e: 12, item: 0.5 }), S(300, { e: 12, gap: [0.5, 22, 3] }), S(200, { e: 0 }), R(90, 70), X(),
     ],
     shortcuts: [{ from: 'A', to: 'B', w: 10, e: 10, jumps: [[0.5, 3]] }],
@@ -175,7 +175,7 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     id: 'junglefalls', name: '정글 폭포 점프', theme: 'jungle', diff: 4, w: 15,
     desc: '진흙탕과 U턴, 폭포 위 끊어진 다리. 늪을 가로지르는 진흙 지름길',
     segs: [
-      S(200, { boost: 0.15, label: 'A' }), L(90, 35), S(150), R(90, 35), S(200, { e: 4, item: 0.5 }), R(90, 35), S(150), L(90, 35), S(150, { label: 'B' }),
+      S(200, { boost: 0.15, label: 'A' }), BG('L', 110, { mid: { e: 4, item: 0.5 }, e: 0 }), S(150, { label: 'B' }),
       S(200, { e: 10 }), R(90, 60, { e: 12 }), S(250, { e: 12, gap: [0.5, 20, 3] }), R(90, 60, { e: 8 }), S(150, { e: 2, mud: [0.3, 50] }),
       U('L', 25), S(150, { item: 0.5 }), U('R', 25), S(200),
       R(90, 60), X({ mud: [0.5, 40], item: 0.4 }), R(90, 60), X(),
@@ -196,7 +196,7 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     desc: '롤러코스터처럼 오르내리는 해변길. 모래사장 지름길과 로타리',
     segs: [
       S(500, { boost: 0.05, item: 0.6 }), S(200, { e: 8 }), S(200, { e: 0, jump: [0.3, 3] }), R(90, 100), S(200, { e: 8 }), S(200, { e: 0 }),
-      S(100, { label: 'A' }), R(90, 40), S(150, { e: 6 }), L(90, 40), S(200, { e: 10, item: 0.5 }), L(90, 40), S(150, { e: 6 }), R(90, 40), S(100, { e: 0, label: 'B' }),
+      S(100, { label: 'A' }), BG('R', 130, { mid: { e: 10, item: 0.5 }, e: 0 }), S(100, { e: 0, label: 'B' }),
       R(90, 100), S(300, { e: 8, jump: [0.6, 3], item: 0.3 }), S(200, { e: 0 }), RB(40, 'straight'), R(90, 100), X({ item: 0.5 }), R(90, 100), X(),
     ],
     shortcuts: [{ from: 'A', to: 'B', w: 12, mud: true }],
@@ -235,7 +235,7 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     desc: '도시 밑 긴 지하 터널과 광장 로타리, 뒷골목 지름길',
     segs: [
       S(400, { boost: 0.1, item: 0.4 }), S(400, { tunnel: true }), R(90, 50), S(200, { item: 0.5 }), RB(36, 'straight'),
-      S(200, { label: 'A' }), R(90, 30), S(150), L(90, 30), S(200, { tunnel: true }), L(90, 30), S(150), R(90, 30), S(150, { label: 'B' }),
+      S(200, { label: 'A' }), BG('R', 120, { mid: { tunnel: true } }), S(150, { label: 'B' }),
       R(90, 60), S(400, { tunnel: true, item: 0.5 }), S(200, { e: 12 }), R(90, 60, { e: 14 }), X({ e: 14, item: 0.5 }), S(150, { e: 0 }), R(90, 60), X(),
     ],
     shortcuts: [{ from: 'A', to: 'B', w: 10 }],
@@ -245,7 +245,7 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     desc: '로타리 네 개를 지나는 항구 도시. 공원을 가로지르는 진흙 지름길',
     segs: [
       S(400, { boost: 0.1, item: 0.6, e: 6 }), RB(34, 'straight'), S(150, { e: 10 }), RB(34, 'right'),
-      S(200, { label: 'A', item: 0.5, e: 4 }), R(90, 30), S(200), L(90, 30), S(200), L(90, 30), S(200), R(90, 30), S(150, { label: 'B' }),
+      S(200, { label: 'A', item: 0.5, e: 4 }), BG('R', 130, { mid: { item: 0.5 } }), S(150, { label: 'B' }),
       RB(36, 'right'), S(300, { item: 0.5, e: 0 }), R(90, 40), X(), RB(34, 'straight'), R(90, 40), X(),
     ],
     shortcuts: [{ from: 'A', to: 'B', w: 12, mud: true }],
@@ -254,9 +254,9 @@ module.exports = ({ S, R, L, U, X, RB }) => [
     id: 'village', name: '시골 마을 지름길', theme: 'grass', diff: 3, w: 16,
     desc: '지름길 세 개! 점프 지름길, 진흙 지름길, 터널 지름길 중 골라 타기',
     segs: [
-      S(300, { boost: 0.1, label: 'A1' }), L(90, 35), S(200), R(90, 35), S(200, { e: 6, item: 0.5 }), R(90, 35), S(200), L(90, 35), S(100, { label: 'B1' }),
-      R(90, 50), S(100, { label: 'A2' }), R(90, 35), S(150), L(90, 35), S(200, { e: 4, item: 0.5 }), L(90, 35), S(150), R(90, 35), S(100, { label: 'B2' }),
-      R(90, 50), S(100, { label: 'A3' }), L(90, 35), S(200), R(90, 35), S(200, { item: 0.5 }), R(90, 35), S(200), L(90, 35), S(100, { label: 'B3' }), S(200),
+      S(300, { boost: 0.1, label: 'A1' }), BG('L', 120, { mid: { e: 6, item: 0.5 }, e: 0 }), S(100, { label: 'B1' }),
+      R(90, 50), S(100, { label: 'A2' }), BG('R', 110, { mid: { e: 4, item: 0.5 }, e: 0 }), S(100, { label: 'B2' }),
+      R(90, 50), S(100, { label: 'A3' }), BG('L', 120, { mid: { item: 0.5 } }), S(100, { label: 'B3' }), S(200),
       R(90, 50), X({ item: 0.5 }), R(90, 50), X(),
     ],
     shortcuts: [{ from: 'A1', to: 'B1', w: 11, jumps: [[0.5, 3.5]] }, { from: 'A2', to: 'B2', w: 12, mud: true }, { from: 'A3', to: 'B3', w: 11, tunnel: true }],

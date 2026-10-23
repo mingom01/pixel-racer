@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mvjreak5';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvjreak5';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvjreak5';
-import { makeLocalServer } from './local.js?v=mvjreak5';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvjreak5';
+import { makeTextures } from './tex.js?v=mvky81gh';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvky81gh';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvky81gh';
+import { makeLocalServer } from './local.js?v=mvky81gh';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvky81gh';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -713,7 +713,7 @@ function updateRemotes(now, dt) {
     if (!s.length) continue;
     while (s.length > 4) s.shift();
     const last = s[s.length - 1], d = last.d;
-    const ex = clamp((now - last.t + (last.lead ?? lead)) / 1000, 0, 0.5);
+    const ex = clamp((now - last.t + (last.lead ?? lead)) / 1000, 0, 0.3);
     let wr = 0, vy = 0;
     if (s.length > 1) {
       const pr = s[s.length - 2], st = (last.t - pr.t) / 1000;
@@ -728,6 +728,12 @@ function updateRemotes(now, dt) {
     for (let k = 0; k < N; k++) {
       const c = Math.cos(wr * h), sn = Math.sin(wr * h), nvx = vx * c + vz * sn, nvz = -vx * sn + vz * c;
       vx = nvx; vz = nvz; x += vx * h; z += vz * h; yaw += wr * h;
+    }
+    // 예측 위치가 벽/건물을 뚫지 않게 (부딪힌 직후 밖으로 튀어나가 보이던 문제)
+    if (p.shape) {
+      const pos = { x, z }, vel = { x: vx, z: vz };
+      for (let k = 0; k < 2; k++) W.collide(pos, Math.max(0.8, p.shape.hw * 0.9), vel, d[1]);
+      x = pos.x; z = pos.z; vx = vel.x; vz = vel.z;
     }
     const gh0 = W.groundHeight(d[0], d[2], d[1] + 1);
     let y;

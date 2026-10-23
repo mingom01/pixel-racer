@@ -24,9 +24,28 @@ function RB(r0, kind, o = {}) {
   return [R(90, rs, { ...o.in }), L(around, r0, { island: true, ...o.mid }), R(90, rs, { ...o.out, ...o })];
 }
 
+// 우회 커브 (지름길용): 'R' 이면 오른쪽으로 부드럽게 불룩 나갔다가 돌아옴. 지름길은 그 안쪽을 곧게 가로지름
+// o.mid: 가운데 커브 옵션(높이·아이템·터널 등), o.e: 끝 높이
+function BG(dir, r, o = {}) {
+  const a = dir === 'R' ? R : L, b = dir === 'R' ? L : R;
+  return [a(75, r, { ...(o.in || {}) }), b(150, r, { ...(o.mid || {}) }), a(75, r, { ...(o.out || {}), ...(o.e !== undefined ? { e: o.e } : {}) })];
+}
 function build(def) {
   const segs = def.segs.flat(Infinity);
   if (def.stretch) for (const s of segs) if (s.t === 'S') s.len = Math.round(s.len * def.stretch);
+  // 길 폭 변화: 급커브/유턴은 넓게, 직선 몇 군데는 좁은 병목, 몇 군데는 아주 넓게 (직접 w 를 준 곳은 그대로)
+  const base = def.w;
+  segs.forEach((sg, idx) => {
+    if (sg.o.w !== undefined) return;
+    let w = base;
+    if (idx > 0 && !def.fixedWidth) {
+      if (sg.t === 'A' && sg.r < 45) w = base + 4;
+      else if (sg.t === 'S' && sg.len >= 180 && idx % 5 === 2 && !sg.o.gap) w = Math.max(10, Math.round(base * 0.66));
+      else if (sg.t === 'S' && sg.len >= 250 && idx % 5 === 4) w = base + 7;
+      else if (sg.t === 'A' && sg.r >= 80 && idx % 3 === 0) w = base + 4;
+    }
+    sg.o = { ...sg.o, w };
+  });
   const run = xl => {
     let x = 0, z = 0, th = 0, e = def.e0 || 0, w = def.w, xi = 0;
     const pts = [[0, 0, e, w]], info = [];
@@ -110,7 +129,8 @@ function build(def) {
     if (o.tunnel) out.tunnels.push([fr(inf, 0.02), fr(inf, 0.98)]);
     if (o.gap) out.gaps.push([fr(inf, o.gap[0]), o.gap[1], o.gap[2] || 3]);
     for (const j of [].concat(o.jump ? [o.jump] : [], o.jumps || [])) out.jumps.push([fr(inf, j[0]), j[1]]);
-    for (const b of [].concat(o.boost ?? [])) out.boosts.push(fr(inf, b));
+    // 출발 직후 250m 안의 부스터는 빼기 (출발 부스터와 겹쳐 이상하게 튀어 나감)
+    for (const b of [].concat(o.boost ?? [])) if (!(inf.start === 0 && b * inf.len < 250)) out.boosts.push(fr(inf, b));
     for (const b of [].concat(o.item ?? [])) out.items.push(fr(inf, b));
     for (const k of ['oil', 'mud']) if (o[k]) out.patches.push([fr(inf, o[k][0]), k, o[k][1]]);
     if (o.posts) out.posts.push([fr(inf, o.posts[0]), o.posts[1]]);
@@ -121,7 +141,8 @@ function build(def) {
     if (!A || !B) throw new Error(def.id + ': 지름길 라벨 없음 ' + sc.from + '/' + sc.to);
     const pa = pts[A.end % pts.length], pb = pts[B.start % pts.length];
     const dx = pb[0] - pa[0], dz = pb[1] - pa[1], dl = Math.hypot(dx, dz), nx = dz / dl, nz = -dx / dl;
-    const via = sc.via || [[0, 0.33], [0, 0.66]];
+    // 지름길 중간점: 기본은 직선 위 약 25m 간격 (간격이 고르지 않으면 곡선이 꼬임)
+    const nv = Math.max(2, Math.round(dl / 25) - 1), via = sc.via || Array.from({ length: nv }, (_, k) => [0, (k + 1) / (nv + 1)]);
     const ctrl = via.map(([side, f]) => [+(pa[0] + dx * f + nx * side).toFixed(1), +(pa[1] + dz * f + nz * side).toFixed(1), +((sc.e ?? (pa[2] + (pb[2] - pa[2]) * f))).toFixed(1)]);
     const o = { from: fr(A, 1), to: fr(B, 0), ctrl, w: sc.w || 12 };
     for (const k of ['jumps', 'boost', 'tunnel', 'mud']) if (sc[k] !== undefined) o[k] = sc[k];
@@ -133,7 +154,7 @@ function build(def) {
   return { res, length: total };
 }
 
-const TRACKS = require('./tracks_design.js')({ S, R, L, U, X, RB });
+const TRACKS = require('./tracks_design.js')({ S, R, L, U, X, RB, BG });
 let bad = 0;
 const built = TRACKS.map(d => {
   try { const b = build(d); console.log(`${d.id.padEnd(13)} ${(b.length / 1000).toFixed(2)}km`); return b.res; } catch (e) { bad++; console.log('X ' + e.message); return null; }

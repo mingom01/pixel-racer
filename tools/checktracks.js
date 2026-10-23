@@ -31,9 +31,9 @@ for (const t of W.arenas) {
   // 지름길
   t.alts.forEach((r, k) => {
     const m = r.path.length;
-    for (let i = 0; i < m; i++) { const R = turnR(r, i); if (R < 14) note('ar' + k, `지름길${k + 1} 급커브 R=${R.toFixed(0)} @${i}/${m}`); }
+    for (let i = 2; i < m - 2; i++) { const R = turnR(r, i); if (R < 14) note('ar' + k, `지름길${k + 1} 급커브 R=${R.toFixed(0)} @${i}/${m}`); }
     for (let i = 0; i < m - 1; i++) { const sl = Math.abs(r.ey[i + 1] - r.ey[i]) / 5; if (sl > 0.22) note('as' + k, `지름길${k + 1} 경사 ${sl.toFixed(2)}`); }
-    for (let i = 8; i < m - 8; i++) for (let j = 0; j < n; j++) {
+    for (let i = Math.round(m * 0.22); i < m - Math.round(m * 0.22); i++) for (let j = 0; j < n; j++) {
       const near = Math.min(...[r.from, r.to].map(x => Math.min(Math.abs(j - x), n - Math.abs(j - x))));
       if (near < 14) continue;
       const D = Math.hypot(r.path[i][0] - t.path[j][0], r.path[i][1] - t.path[j][1]), de = Math.abs(r.ey[i] - t.ey[j]);

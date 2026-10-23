@@ -1,7 +1,7 @@
 // 레이싱 방 (그랑프리) 클라이언트: 경기장, 대기실, 예선/결승, 아이템전/스피드전, 결과
 import * as THREE from './lib/three.module.min.js';
-import { canvasOf, tex, signTexture } from './tex.js?v=mvjreak5';
-import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mvjreak5';
+import { canvasOf, tex, signTexture } from './tex.js?v=mvky81gh';
+import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mvky81gh';
 
 const W = WORLD;
 const $ = id => document.getElementById(id);
@@ -178,13 +178,19 @@ function buildArena(a) {
   const amp = HILLS[a.theme] || 0;
   const noise = (x, z) => 0.5 + 0.22 * Math.sin(x * 0.011 + 1.3) * Math.cos(z * 0.013 - 0.7) + 0.16 * Math.sin(x * 0.027 + z * 0.019) + 0.12 * Math.cos(x * 0.051 - z * 0.043 + 2);
   const seaCut = (x) => (a.theme === 'beach' && x > b.x2 + 50) || (a.theme === 'port' && x < b.x1 - 50);
+  // 길 옆 땅은 길 높이를 따라 올라감(언덕길). 다리(교차로)·끊어진 다리 근처·하늘 테마는 비워 둠
+  const floating = a.theme === 'sky' || a.theme === 'rainbow';
+  const nofill = new Array(a.path.length).fill(false);
+  a.path.forEach((_, i) => { for (let k = -7; k <= 7; k++) { const j = (i + k + a.path.length) % a.path.length; if (a.gap[j] || a.cross[j]) { nofill[i] = true; break; } } });
   const terrainH = (x, z) => {
-    if (!amp || seaCut(x)) return 0;
+    if (seaCut(x)) return 0;
     const rd = W.roadDist(a, x, z, 3), d = rd.d;
-    if (d < 7) return 0;
-    const f = Math.min(1, (d - 7) / 90), s = f * f * (3 - 2 * f);
+    const base = !floating && rd.r && !(rd.r === a ? nofill[rd.k] : rd.r.tunnel) && rd.e < 20 ? Math.max(0, rd.e - 0.45) : 0;
+    if (d < 7) return base;
+    const f = Math.min(1, (d - 7) / 90), sm = f * f * (3 - 2 * f);
     const far = Math.min(1, Math.max(0, (d - 150) / 250));
-    return amp * noise(x, z) * s * (1 + far * 1.2);
+    const hill = amp ? amp * noise(x, z) * (1 + far * 1.2) : 0;
+    return base + (hill - base) * sm;
   };
   a.terrainH = terrainH;
   {
@@ -221,7 +227,7 @@ function buildArena(a) {
     const n = r.path.length, alt = r !== a;
     const hw = i => r.hw[i], wbo = i => r.wbs[i] + 0.5;
     const skip = i => (r.open && i >= n - 1) || r.gap[i] || r.gap[(i + 1) % n];
-    const rm = alt ? off(roadMat) : roadMat, um = alt ? off(runMat) : runMat, cm = alt ? off(curbMat) : curbMat;
+    const rm = alt ? off(lam({ map: TX.dirtRoad })) : roadMat, um = alt ? off(runMat) : runMat, cm = alt ? off(curbMat) : curbMat;
     add(ribbon(r, i => -hw(i), hw, 0.06, 8, skip), rm);
     add(ribbon(r, i => hw(i) + 1.6, wbo, 0.04, 4, skip), um);
     add(ribbon(r, i => -wbo(i), i => -hw(i) - 1.6, 0.04, 4, skip), um);
@@ -270,6 +276,16 @@ function buildArena(a) {
     g.add(pm);
   }
   g.add(startLine(a, T), gantry(a, T));
+  // 지름길 입구 표지판 (노란 판, 지름길 쪽 바깥에)
+  for (const r of a.alts) {
+    const k = Math.min(r.path.length - 1, 12), pp = r.path[k], tg = r.tan[k], mp = a.path[r.from];
+    const side = ((pp[0] - mp[0]) * tg[1] - (pp[1] - mp[1]) * tg[0]) >= 0 ? 1 : -1, o = r.wbs[k] + 1.5;
+    const x = pp[0] + tg[1] * side * o, z = pp[1] - tg[0] * side * o, e = r.ey[k];
+    const st = signTexture('지름길 >>', '#f2c230', '#2a2a2e');
+    const board = new THREE.Mesh(boxUV(7, 2.4, 0.3, 2), [lam({ color: 0x3a3a44 }), lam({ color: 0x3a3a44 }), lam({ color: 0x3a3a44 }), lam({ color: 0x3a3a44 }), lam({ map: st }), lam({ map: st })]);
+    board.position.set(x, e + 4.2, z); board.rotation.y = Math.atan2(tg[0], tg[1]) + Math.PI; board.castShadow = true; g.add(board);
+    for (const d of [-2.8, 2.8]) { const pole = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4, 0.3), lam({ color: 0x5a5a64 })); pole.position.set(x + Math.cos(board.rotation.y) * d, e + 2, z - Math.sin(board.rotation.y) * d); g.add(pole); }
+  }
 
   // ---------- 벽 (타이어 벽 / 네온 블록) ----------
   const allBars = [...a.barriers, ...a.alts.flatMap(r => r.barriers)];
@@ -414,7 +430,7 @@ function buildTrackside(a, g, th, T, R) {
   // 아치: 체크포인트 몇 군데 위
   const archBox = [];
   a.cps.forEach((ci, k) => {
-    if (k === 0 || k % 3 !== 1 || !okHere(ci)) return;
+    if (k < 3 || k % 3 !== 1 || !okHere(ci) || a.path.length - ci < 40) return; // 출발선 근처엔 아치 없음 (두 번째 출발선처럼 보여서)
     const pp = a.path[ci], tg = a.tan[ci], w = a.wbs[ci] + 1.2, e = a.ey[ci], yaw = Math.atan2(tg[0], tg[1]);
     archBox.push([pp[0] + tg[1] * w, pp[1] - tg[0] * w, e + 5, 1.6, 10, 1.6, yaw], [pp[0] - tg[1] * w, pp[1] + tg[0] * w, e + 5, 1.6, 10, 1.6, yaw], [pp[0], pp[1], e + 10.5, w * 2 + 1.6, 2, 1.2, yaw]);
   });
@@ -485,6 +501,69 @@ function buildTrackside(a, g, th, T, R) {
     const fc = [th.bar[0], th.bar[1], 0xf2c230, 0x3a6fd8];
     flags.forEach(([x, z, c], k) => { m4.makeTranslation(x, 3, z); pole.setMatrixAt(k, m4); m4.makeTranslation(x, 5.2, z + 1.1); fl.setMatrixAt(k, m4); fl.setColorAt(k, new THREE.Color(fc[c])); });
     g.add(pole, fl);
+  }
+  // 철망 뒤 관중: 직선 군데군데 (철망 + 기둥 + 사람 두세 줄)
+  {
+    const fenceCv = document.createElement('canvas'); fenceCv.width = fenceCv.height = 16;
+    const fg = fenceCv.getContext('2d'); fg.fillStyle = '#c8ccd4';
+    for (let k = 0; k < 16; k++) { fg.fillRect(k, k, 1, 1); fg.fillRect(15 - k, k, 1, 1); }
+    fg.fillRect(0, 0, 16, 1);
+    const ft = tex(fenceCv);
+    const fenceMat = lam2({ map: ft, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+    const groups = [];
+    for (let i = 30; i < n - 30 && groups.length < 10; i += 23) {
+      if (Math.abs(curv(i)) > 0.05 || Math.abs(curv(i + 6)) > 0.05 || !okHere(i) || !okHere(i + 6) || a.ey[i] > 1.5) continue;
+      const sd = groups.length % 2 ? 1 : -1;
+      const [x0, z0] = side(i, sd, a.wbs[i] + 2.5), [x1, z1] = side(i + 6, sd, a.wbs[i + 6] + 2.5);
+      const [bx, bz] = side(i + 3, sd, a.wbs[i + 3] + 7);
+      if (!free(x0, z0, 0) || !free(x1, z1, 0) || !free(bx, bz, 0) || W.roadDist(a, bx, bz, 1).d < 4) continue;
+      if (a.stands && a.stands.some(q => Math.abs(q - i) < 14)) continue;
+      groups.push([i, sd]); i += 18;
+    }
+    const people = [], heads = [], posts = [];
+    const shirt = [0xd83a3a, 0x3a6fd8, 0xf2c230, 0x3aa64a, 0xf2f2f2, 0x9a4ad8, 0xe0782a, 0x38c8c8, 0xf27aa8, 0x2a2a2e];
+    for (const [i, sd] of groups) {
+      // 철망 판
+      const pos = [], uv = [];
+      let du = 0;
+      for (let k = i; k < i + 6; k++) {
+        const [ax, az] = side(k, sd, a.wbs[k] + 2.5), [cx, cz] = side(k + 1, sd, a.wbs[k + 1] + 2.5), L = Math.hypot(cx - ax, cz - az);
+        pos.push(ax, 0, az, cx, 0, cz, cx, 3, cz, ax, 0, az, cx, 3, cz, ax, 3, az);
+        uv.push(du / 1.5, 0, (du + L) / 1.5, 0, (du + L) / 1.5, 2, du / 1.5, 0, (du + L) / 1.5, 2, du / 1.5, 2);
+        du += L;
+        if (k % 1 === 0) posts.push([ax, az]);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      geo.computeVertexNormals();
+      g.add(new THREE.Mesh(geo, fenceMat));
+      // 사람
+      for (let k = 0; k < 40; k++) {
+        const f = i + R() * 6, kk = Math.floor(f), row = Math.floor(R() * 3), o = a.wbs[kk] + 4 + row * 1.6 + R() * 0.6;
+        const [px, pz] = side(kk, sd, o), tg = a.tan[kk], fr = f - kk;
+        const x = px + tg[0] * fr * 5, z = pz + tg[1] * fr * 5, h = 1.1 + R() * 0.4, y0 = row * 0.6;
+        people.push([x, y0 + h / 2, z, h, shirt[Math.floor(R() * shirt.length)]]);
+        heads.push([x, y0 + h + 0.28, z]);
+      }
+      // 사람이 올라선 낮은 단
+      const [sx, sz] = side(i + 3, sd, a.wbs[i + 3] + 6.2), st = new THREE.Mesh(boxUV(5.5, 1.2, 30, 2), lam2({ map: T.concrete }));
+      st.position.set(sx, 0.3, sz); st.rotation.y = Math.atan2(a.tan[i + 3][0], a.tan[i + 3][1]); st.receiveShadow = true; g.add(st);
+    }
+    if (people.length) {
+      const body = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 1, 0.45), lam2({ color: 0xffffff }), people.length);
+      const head = new THREE.InstancedMesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), lam2({ color: 0xf0c8a0 }), heads.length);
+      const c = new THREE.Color();
+      people.forEach(([x, y, z, h, cl], k) => { m4.makeScale(1, h, 1); m4.setPosition(x, y, z); body.setMatrixAt(k, m4); body.setColorAt(k, c.setHex(cl)); });
+      heads.forEach(([x, y, z], k) => { m4.makeTranslation(x, y, z); head.setMatrixAt(k, m4); });
+      body.castShadow = true;
+      g.add(body, head);
+      a.fans = { body, head, base: people.map(q => q[1]), hbase: heads.map(q => q[1]), ph: people.map(() => R() * 6) };
+    }
+    if (posts.length) {
+      const pm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.15, 3.2, 0.15), lam2({ color: 0x7a7e86 }), posts.length);
+      posts.forEach(([x, z], k) => { m4.makeTranslation(x, 1.6, z); pm.setMatrixAt(k, m4); });
+      g.add(pm);
+    }
   }
   // 관중석: 출발선 옆 + 긴 직선 두 군데
   const crowd = lam2({ map: TX.crowd }), conc = lam2({ map: T.concrete });
@@ -582,15 +661,23 @@ function mapOf(a) {
   segs.sort((u, v) => u[0].ey[u[1]] - v[0].ey[v[1]]);
   const barCol = '#' + th.bar[0].toString(16).padStart(6, '0'), roadCol = a.theme === 'snow' ? '#8ab8e0' : '#3e3e44';
   g.lineCap = 'round';
-  for (const [r, i] of segs) {
-    const m = r.path.length, p1 = r.path[i], p2 = r.path[(i + 1) % m], [x1, y1] = to(p1[0], p1[1]), [x2, y2] = to(p2[0], p2[1]);
-    const lift = Math.min(1, r.ey[i] / 30), alt = r !== a;
-    g.strokeStyle = alt ? '#f2c230' : (r.ey[i] > 4 ? '#000' : barCol); g.lineWidth = (r.wbs[i] * 2 + 4) * s + (r.ey[i] > 4 ? 3 : 0);
-    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
-    const tun = !alt ? a.inTunnel(i) : r.tunnel;
-    g.strokeStyle = r.gap[i] ? '#111' : (tun ? '#22222a' : (lift > 0.1 ? `rgb(${62 + lift * 90},${62 + lift * 90},${68 + lift * 90})` : roadCol));
-    g.lineWidth = r.hw[i] * 2 * s * 1.4;
-    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  // 높이 6m 단위로 묶어서: 묶음마다 테두리 전부 → 길 전부 (구슬처럼 끊겨 보이지 않게)
+  const bands = new Map();
+  for (const sg of segs) { const b = Math.floor(sg[0].ey[sg[1]] / 6); if (!bands.has(b)) bands.set(b, []); bands.get(b).push(sg); }
+  const line = (r, i) => { const m = r.path.length, p1 = r.path[i], p2 = r.path[(i + 1) % m], [x1, y1] = to(p1[0], p1[1]), [x2, y2] = to(p2[0], p2[1]); g.moveTo(x1, y1); g.lineTo(x2, y2); };
+  for (const b of [...bands.keys()].sort((u, v) => u - v)) {
+    const list = bands.get(b);
+    for (const [r, i] of list) {
+      const alt = r !== a;
+      g.strokeStyle = alt ? '#f2c230' : (r.ey[i] > 4 ? '#000' : barCol); g.lineWidth = (r.wbs[i] * 2 + 4) * s + (r.ey[i] > 4 ? 3 : 0);
+      g.beginPath(); line(r, i); g.stroke();
+    }
+    for (const [r, i] of list) {
+      const alt = r !== a, lift = Math.min(1, r.ey[i] / 30), tun = !alt ? a.inTunnel(i) : r.tunnel;
+      g.strokeStyle = r.gap[i] ? '#111' : (tun ? '#22222a' : (alt ? '#9a7444' : (lift > 0.1 ? `rgb(${62 + lift * 90},${62 + lift * 90},${68 + lift * 90})` : roadCol)));
+      g.lineWidth = r.hw[i] * 2 * s * 1.4;
+      g.beginPath(); line(r, i); g.stroke();
+    }
   }
   for (const isl of a.islands) { const [ix, iy] = to(isl.x, isl.z); g.fillStyle = '#4f9530'; g.beginPath(); g.arc(ix, iy, isl.r * s, 0, Math.PI * 2); g.fill(); }
   const [sx, sy] = to(a.path[0][0], a.path[0][1]);
@@ -605,6 +692,29 @@ export function drawMap(g, big) {
   for (const ms of missiles) dot(ms.x, ms.z, '#ff3030', big ? 3 : 2);
   for (const p of X.G.players.values()) if (p.disp && !p.disp.hidden) dot(p.disp.x, p.disp.z, X.colorCss(p.color), big ? 5 : 3);
   if (!GP.spectating()) dot(X.car.x, X.car.z, '#ffffff', big ? 6 : 4);
+  if (!big) return;
+  // 큰 지도: 방향 화살표 + 이름, 다음 체크포인트, 범례
+  const a = S.arena;
+  const arrow = (x, z, yaw, col, name) => {
+    const [px, py] = m.to(x, z), dx = -Math.sin(yaw), dy = -Math.cos(yaw), r = 11;
+    g.fillStyle = '#000'; g.beginPath(); g.moveTo(px + dx * (r + 2), py + dy * (r + 2)); g.lineTo(px - dx * r - dy * (r * 0.7 + 2), py - dy * r + dx * (r * 0.7 + 2)); g.lineTo(px - dx * r + dy * (r * 0.7 + 2), py - dy * r - dx * (r * 0.7 + 2)); g.fill();
+    g.fillStyle = col; g.beginPath(); g.moveTo(px + dx * r, py + dy * r); g.lineTo(px - dx * (r - 2) - dy * r * 0.6, py - dy * (r - 2) + dx * r * 0.6); g.lineTo(px - dx * (r - 2) + dy * r * 0.6, py - dy * (r - 2) - dx * r * 0.6); g.fill();
+    if (name) { g.font = '13px Galmuri11, monospace'; g.fillStyle = '#000'; g.fillText(name, px + 13, py - 7); g.fillStyle = '#fff'; g.fillText(name, px + 12, py - 8); }
+  };
+  if (S.run && S.inRun && !S.done) {
+    const cp = a.path[a.cps[S.c % a.cps.length]], [cx, cy] = m.to(cp[0], cp[1]);
+    g.strokeStyle = '#f2c230'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, 9 + Math.sin(performance.now() / 150) * 2, 0, Math.PI * 2); g.stroke();
+  }
+  for (const p of X.G.players.values()) if (p.disp && !p.disp.hidden) arrow(p.disp.x, p.disp.z, p.disp.yaw, X.colorCss(p.color), p.name);
+  if (!GP.spectating()) arrow(X.car.x, X.car.z, X.car.yaw, '#ffffff', X.G.me?.name || '나');
+  const lines = [a.name + ' · ' + (a.length / 1000).toFixed(1) + 'km'];
+  if (a.alts.length) lines.push('노란 테두리 = 지름길');
+  if (a.tunnels.length || a.alts.some(r => r.tunnel)) lines.push('검은 길 = 터널');
+  if (a.gap.some(Boolean)) lines.push('검은 칸 = 끊어진 다리');
+  if (S.run && S.inRun) lines.push('노란 원 = 다음 체크포인트');
+  g.fillStyle = 'rgba(0,0,0,.65)'; g.fillRect(8, 8, 230, 10 + lines.length * 18);
+  g.font = '13px Galmuri11, monospace'; g.fillStyle = '#fff';
+  lines.forEach((l, k) => g.fillText(l, 16, 26 + k * 18));
 }
 
 /* ================= 아이템 박스 / 오브젝트 ================= */
@@ -738,7 +848,7 @@ export function gpMsg(m) {
     case 'gpRoom': {
       const prevTrack = S.room?.set.track;
       S.room = m.room;
-      const a = W.trackById[m.room.set.track];
+      const a = W.trackById[m.room.cur || m.room.set.track] || S.arena || W.arenas[0];
       if (a !== S.arena) { setArena(a); if (!S.run) toGrid(mySlot()); }
       else if (!prevTrack) { /* 첫 수신 */ }
       showBoxes();
@@ -752,8 +862,17 @@ export function gpMsg(m) {
       S.fastest = m.fastest;
       if (m.id === X.G.myId) {
         S.best = m.best;
-        X.toast(`랩 ${m.lap}: ${X.fmtTime(m.time)}${m.fastest?.id === m.id && m.fastest.time === m.time ? '  (전체 최고 기록!)' : ''}`);
+        if (!m.record) X.toast(`랩 ${m.lap}: ${X.fmtTime(m.time)}${m.fastest?.id === m.id && m.fastest.time === m.time ? '  (이번 레이스 최고 랩)' : ''}`);
       }
+      break;
+    }
+    case 'gpRecord': {
+      // 트랙 신기록: 이때만 보라색 타이머
+      if (S.room) { S.room.records = S.room.records || {}; S.room.records[m.track] = { time: m.time, name: m.name }; }
+      S.recFlash = { until: now + 4000, time: m.time, name: m.name, me: m.id === X.G.myId };
+      if (m.id === X.G.myId) { X.bigText('트랙 신기록! ' + X.fmtTime(m.time), 2200, true); X.sfx.finish(); }
+      else X.toast(`${m.name} 님 트랙 신기록! ${X.fmtTime(m.time)}`);
+      renderLobby();
       break;
     }
     case 'gpFin': {
@@ -775,9 +894,11 @@ export function gpMsg(m) {
       const rows = m.results.map(r => {
         const team = r.team ? `<span class="tdot ${r.team}"></span>` : '';
         const gap = r.place === 1 || !r.time ? '' : '+' + ((r.time - win) / 1000).toFixed(2);
-        return `<tr class="${r.id === X.G.myId ? 'me' : ''}"><td>${r.place ? r.place + '위' : '-'}</td><td>${team}${X.esc(r.name)}</td><td>${r.time ? X.fmtTime(r.time) : 'DNF'} <span class="muted">${gap}</span></td><td>${r.best ? X.fmtTime(r.best) : '-'}${r.fl ? ' <b class="fl">FL</b>' : ''}</td><td>+${r.pts}점</td><td>+${r.coins}</td></tr>`;
+        return `<tr class="${r.id === X.G.myId ? 'me' : ''}"><td>${r.place ? r.place + '위' : '-'}</td><td>${team}${X.esc(r.name)}</td><td>${r.time ? X.fmtTime(r.time) : 'DNF'} <span class="muted">${gap}</span></td><td>${r.best ? (r.rec ? `<b class="fltime">${X.fmtTime(r.best)}</b> <b class="fl">FL</b>` : X.fmtTime(r.best)) : '-'}${r.fl && !r.rec ? ' <span class="muted">최고 랩</span>' : ''}</td><td>+${r.pts}점</td><td>+${r.coins}</td></tr>`;
       }).join('');
-      let foot = m.fastest ? `최고 랩: ${X.esc(m.fastest.name)} ${X.fmtTime(m.fastest.time)} (+1점)` : '';
+      let foot = m.fastest ? `이번 레이스 최고 랩: ${X.esc(m.fastest.name)} ${X.fmtTime(m.fastest.time)} (+1점)` : '';
+      const recNow = S.room?.records?.[S.arena?.id];
+      if (recNow) foot += `<br>트랙 기록: <b class="fltime">${X.fmtTime(recNow.time)}</b> ${X.esc(recNow.name)}${m.results.some(x => x.rec) ? ' <b class="fl">신기록!</b>' : ''}`;
       if (m.teams) foot = `<b class="red-t">레드팀 ${m.teams.red}점</b> vs <b class="blue-t">블루팀 ${m.teams.blue}점</b> → ${m.teams.red === m.teams.blue ? '무승부' : (m.teams.red > m.teams.blue ? '레드팀 승리!' : '블루팀 승리!')}<br>` + foot;
       showResults('결승 결과', '<tr class="hd"><td>순위</td><td>이름</td><td>기록</td><td>최고 랩</td><td>포인트</td><td>코인</td></tr>' + rows, foot);
       break;
@@ -841,10 +962,14 @@ export function toggleLobby() { if (!S.run && GP.active) openLobby(!S.lobbyOpen)
 function renderLobby() {
   if (!S.room || $('gplobby').classList.contains('hidden')) { renderHud(); return; }
   const r = S.room, host = isHost(), set = r.set, me = r.players.find(p => p.id === X.G.myId);
-  const a = W.trackById[set.track];
+  const rnd = { random: '랜덤 (전체 코스)', 'random:easy': '랜덤 (쉬운 코스: 난이도 1~2)', 'random:mid': '랜덤 (보통 코스: 난이도 3)', 'random:hard': '랜덤 (어려운 코스: 난이도 4~5)' };
+  const a = W.trackById[set.track] || S.arena || W.arenas[0];
   $('glTitle').textContent = `${X.G.room?.name || ''}  ·  코드 ${X.G.room?.code || ''}`;
-  $('glTrack').innerHTML = [1, 2, 3, 4, 5].map(d => `<optgroup label="난이도 ${d} · ${DIFF_NAME[d]}">` + W.arenas.filter(t => t.diff === d).map(t => `<option value="${t.id}" ${t.id === set.track ? 'selected' : ''}>${t.name} (${(t.length / 1000).toFixed(1)}km)</option>`).join('') + '</optgroup>').join('');
-  $('glTrackDesc').innerHTML = `<span class="diff d${a.diff}">${'■'.repeat(a.diff)}${'□'.repeat(5 - a.diff)} ${DIFF_NAME[a.diff]}</span> ${(a.length / 1000).toFixed(1)}km · ${X.esc(a.desc)}${trackTags(a)}`;
+  $('glTrack').innerHTML = '<optgroup label="랜덤">' + Object.keys(rnd).map(k => `<option value="${k}" ${k === set.track ? 'selected' : ''}>${rnd[k]}</option>`).join('') + '</optgroup>' + [1, 2, 3, 4, 5].map(d => `<optgroup label="난이도 ${d} · ${DIFF_NAME[d]}">` + W.arenas.filter(t => t.diff === d).map(t => `<option value="${t.id}" ${t.id === set.track ? 'selected' : ''}>${t.name} (${(t.length / 1000).toFixed(1)}km)</option>`).join('') + '</optgroup>').join('');
+  const rec = r.records?.[a.id];
+  const recTxt = `<br>트랙 기록: ${rec ? `<b class="fltime">${X.fmtTime(rec.time)}</b> ${X.esc(rec.name)}` : '<span class="muted">아직 없음 · 첫 기록을 세워 보세요</span>'}`;
+  if (rnd[set.track]) $('glTrackDesc').innerHTML = `<b>${rnd[set.track]}</b> · 레이스를 시작할 때 무작위로 코스를 골라요.`;
+  else $('glTrackDesc').innerHTML = `<span class="diff d${a.diff}">${'■'.repeat(a.diff)}${'□'.repeat(5 - a.diff)} ${DIFF_NAME[a.diff]}</span> ${(a.length / 1000).toFixed(1)}km · ${X.esc(a.desc)}${trackTags(a)}${recTxt}`;
   const seg = (id, v) => document.querySelectorAll(`#${id} button`).forEach(b => { b.classList.toggle('on', b.dataset.v === String(v)); b.disabled = !host; });
   seg('glMode', set.mode); seg('glTeam', set.team); seg('glQuali', set.quali); seg('glLaps', set.laps);
   $('glTrack').disabled = !host;
@@ -1072,6 +1197,7 @@ function hitMover(car, bx) {
   }
 }
 
+const fanM4 = new THREE.Matrix4();
 /* ================= 물리 보정 (매 스텝) ================= */
 export function prePhysics(dt, inp) {
   if (!GP.active) return inp;
@@ -1189,6 +1315,17 @@ export function gpFrame(dt, now) {
     }
   }
 
+  // 관중 응원 (차가 가까우면 더 신나게 뜀)
+  if (a.fans && (S.fanTick = (S.fanTick || 0) + 1) % 2 === 0) {
+    const f = a.fans, m4 = fanM4, mat = f.body.instanceMatrix.array, hm = f.head.instanceMatrix.array;
+    for (let k = 0; k < f.base.length; k++) {
+      const bx = mat[k * 16 + 12], bz = mat[k * 16 + 14], near = Math.abs(bx - car.x) + Math.abs(bz - car.z) < 70;
+      const jump = Math.max(0, Math.sin(t * (near ? 9 : 3) + f.ph[k])) * (near ? 0.6 : 0.15);
+      mat[k * 16 + 13] = f.base[k] + jump; hm[k * 16 + 13] = f.hbase[k] + jump;
+    }
+    f.body.instanceMatrix.needsUpdate = true; f.head.instanceMatrix.needsUpdate = true;
+    void m4;
+  }
   // 움직이는 장애물: 모양 갱신 + 내 차와 충돌
   const wt = (Date.now() % 1e8) / 1000;
   a.movers.forEach((m, k) => {
@@ -1330,6 +1467,12 @@ function renderHud() {
   ib.classList.toggle('ready', !!main);
   $('gpLobbyBtn').classList.toggle('hidden', inRace || S.lobbyOpen);
 }
+// 트랙 기록 표시. 신기록이 나오면 몇 초 동안 보라색으로 깜빡임
+function recHud(now) {
+  const rec = S.room?.records?.[S.arena?.id], fl = S.recFlash && now < S.recFlash.until;
+  if (!rec && !fl) return '<div><span class="gp-k">트랙 기록</span>-</div>';
+  return `<div><span class="gp-k">${fl ? '트랙 신기록!' : '트랙 기록'}</span><span class="gp-rec ${fl ? 'flash' : ''}">${X.fmtTime(rec ? rec.time : S.recFlash.time)}</span></div>`;
+}
 function hudTick(now) {
   const run = S.run, a = S.arena;
   const gauge = document.querySelector('#gpSlots .gauge i');
@@ -1341,7 +1484,7 @@ function hudTick(now) {
     const left = Math.max(0, ((S.endAt || S.startAt + 75000) - now) / 1000);
     const cur = S.lapStart ? now - S.lapStart : 0;
     top = `<div><span class="gp-k">예선 남은 시간</span><b class="gp-big">${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</b></div>
-      <div><span class="gp-k">현재 랩</span>${S.inRun && S.lapStart ? X.fmtTime(cur) : '-'}</div><div><span class="gp-k">내 최고</span>${X.fmtTime(S.best)}</div>`;
+      <div><span class="gp-k">현재 랩</span>${S.inRun && S.lapStart ? X.fmtTime(cur) : '-'}</div><div><span class="gp-k">내 최고</span>${X.fmtTime(S.best)}</div>` + recHud(now);
     const ids = Object.keys(run.grid).sort((x, y) => (S.qbest[x] ?? Infinity) - (S.qbest[y] ?? Infinity));
     board = ids.map((id, k) => `<div class="${id === X.G.myId ? 'me' : ''}"><b>${k + 1}</b> ${X.esc(nameOf(id))} <span>${S.qbest[id] ? X.fmtTime(S.qbest[id]) : '-'}</span></div>`).join('');
   } else {
@@ -1352,7 +1495,7 @@ function hudTick(now) {
     if (S.inRun) {
       top = `<div class="gp-pos">${pos || '-'}<small>/${rl.length}</small></div>
         <div><span class="gp-k">바퀴</span><b class="gp-big">${S.done ? '완주' : lap + '/' + run.laps}</b></div>
-        <div><span class="gp-k">시간</span>${X.fmtTime(time)}</div><div><span class="gp-k">최고 랩</span>${X.fmtTime(S.best)}</div>`;
+        <div><span class="gp-k">시간</span>${X.fmtTime(time)}</div><div><span class="gp-k">최고 랩</span>${X.fmtTime(S.best)}</div>` + recHud(now);
     } else {
       const sp = S.spect ? nameOf(S.spect) : '';
       top = `<div><span class="gp-k">관전 중</span><b>${X.esc(sp)}</b> <span class="muted">(클릭/Space: 다른 사람)</span></div>`;
