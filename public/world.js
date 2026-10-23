@@ -470,12 +470,20 @@
   // 출발 그리드
   // 출발선 뒤로 경로를 따라 두 줄로 배치
   function gridSlot(t, k) {
-    const n = t.path.length, step = t.length / n;
-    const row = Math.floor(k / 2), side = (k % 2 === 0 ? 1 : -1) * t.w * 0.22;
-    const back = 10 + row * 9 + (k % 2) * 3;
-    const idx = ((-Math.round(back / step)) % n + n) % n;
-    const p = t.path[idx], tg = t.tan[idx];
-    return { x: p[0] + tg[1] * side, z: p[1] - tg[0] * side, yaw: Math.atan2(tg[0], tg[1]), y: t.ey ? t.ey[idx] : 0 };
+    // 세 줄(오른쪽·왼쪽·가운데)로 엇갈려 서서 바로 앞에 차가 붙어 있지 않게: 한 칸마다 5.5m 뒤, 같은 줄 앞차와는 16.5m
+    const n = t.path.length;
+    const lane = [0.6, -0.6, 0][k % 3], back = 9 + k * 5.5;
+    // 출발선에서 경로를 따라 정확히 back m 뒤로
+    let i = 0, left = back, u = 0;
+    for (let g = 0; g < n; g++) {
+      const a = t.path[(i - 1 + n) % n], b = t.path[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (left <= L) { u = left / (L || 1); break; }
+      left -= L; i = (i - 1 + n) % n;
+    }
+    const i0 = (i - 1 + n) % n, a = t.path[i0], b = t.path[i], tg = t.tan[i];
+    const px = b[0] + (a[0] - b[0]) * u, pz = b[1] + (a[1] - b[1]) * u;
+    const hw = t.hw ? t.hw[i] : t.w / 2, side = lane * hw;
+    return { x: px + tg[1] * side, z: pz - tg[0] * side, yaw: Math.atan2(tg[0], tg[1]), y: t.ey ? t.ey[i] + (t.ey[i0] - t.ey[i]) * u : 0 };
   }
 
   /* ---------- 부스터 패드 ---------- */
