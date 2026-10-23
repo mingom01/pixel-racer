@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mvkyngg6';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvkyngg6';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvkyngg6';
-import { makeLocalServer } from './local.js?v=mvkyngg6';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvkyngg6';
+import { makeTextures } from './tex.js?v=mvkywxwu';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvkywxwu';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvkywxwu';
+import { makeLocalServer } from './local.js?v=mvkywxwu';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvkywxwu';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -713,7 +713,9 @@ function updateRemotes(now, dt) {
     if (!s.length) continue;
     while (s.length > 4) s.shift();
     const last = s[s.length - 1], d = last.d;
-    const ex = clamp((now - last.t + (last.lead ?? lead)) / 1000, 0, 0.3);
+    const flags0 = d[8] | 0, calm = (flags0 & 1024) || now < (p.calmUntil || 0);
+    const raw = clamp((now - last.t + (calm ? 0 : (last.lead ?? lead))) / 1000, 0, 0.6);
+    const ex = calm ? Math.min(raw, 0.06) : (raw <= 0.25 ? raw : 0.25 + (raw - 0.25) * 0.35);
     let wr = 0, vy = 0;
     if (s.length > 1) {
       const pr = s[s.length - 2], st = (last.t - pr.t) / 1000;
@@ -741,11 +743,17 @@ function updateRemotes(now, dt) {
     else y = Math.max(W.groundHeight(x, z, d[1] + 1), d[1] + vy * ex - 12 * ex * ex);
     // 화면 위치: 지난 화면 위치를 속도만큼 움직인 뒤 예측 위치로 당김 (멀면 바로 이동)
     const prev = p.disp;
-    if (prev && !prev.hidden && Math.hypot(prev.x - x, prev.z - z) < 12) {
-      const k = 1 - Math.exp(-dt * 12);
-      const px = prev.x + prev.vx * dt, pz = prev.z + prev.vz * dt;
-      x = px + (x - px) * k; z = pz + (z - pz) * k; y = prev.y + (y - prev.y) * Math.min(1, k * 1.5);
-      yaw = angLerp(prev.yaw, yaw, k);
+    if (prev && !prev.hidden) {
+      const px = prev.x + prev.vx * dt, pz = prev.z + prev.vz * dt, err = Math.hypot(px - x, pz - z);
+      if (err < 25) {
+        const k = 1 - Math.exp(-dt * (calm ? 6 : 9 + err * 1.2));
+        x = px + (x - px) * k; z = pz + (z - pz) * k; y = prev.y + (y - prev.y) * Math.min(1, k * 1.5);
+        yaw = angLerp(prev.yaw, yaw, Math.min(1, k * 1.3));
+        // 보정 중 속도도 부드럽게 (갑자기 튀는 방향 전환 줄이기)
+        vx = prev.vx + (vx - prev.vx) * Math.min(1, k * 1.5); vz = prev.vz + (vz - prev.vz) * Math.min(1, k * 1.5);
+        // 보정해도 벽 안쪽 유지
+        if (p.shape) { const pos = { x, z }, vel = { x: vx, z: vz }; W.collide(pos, Math.max(0.8, p.shape.hw * 0.9), vel, d[1]); x = pos.x; z = pos.z; }
+      }
     }
     const flags = d[8] | 0;
     p.prog = d[9] || 0;
@@ -854,6 +862,10 @@ function onMsg(m) {
         if (!p) continue;
         const d = m.ps[id], l = p.snaps[p.snaps.length - 1];
         if (l && l.d[0] === d[0] && l.d[2] === d[2] && l.d[3] === d[3] && l.d[8] === d[8]) continue;
+        if (l) {
+          const dv = Math.hypot((d[10] ?? 0) - (l.d[10] ?? 0), (d[11] ?? 0) - (l.d[11] ?? 0));
+          if (dv > 7) p.calmUntil = now + 400;
+        }
         p.snaps.push({ t: now, d }); if (p.snaps.length > 6) p.snaps.shift();
       }
       break;
@@ -895,7 +907,7 @@ function onMsg(m) {
         const last = sp.snaps[sp.snaps.length - 1];
         const d = m.me.slice(); if (last) { d[8] = last.d[8]; d[9] = last.d[9]; }
         sp.snaps.push({ t: performance.now(), d, lead: (G.rtt || 120) * 0.5 + 10 });
-        if (sp.disp) { sp.disp.x = d[0]; sp.disp.z = d[2]; sp.disp.yaw = d[3]; }
+        sp.calmUntil = performance.now() + 400; // 순간이동 대신 부드럽게 따라감
       }
       const k = Math.hypot(m.dv[0], m.dv[1]);
       sfx.crash(k * 2); camState.shake = Math.min(0.7, k * 0.05);
@@ -1530,7 +1542,7 @@ function frame() {
     if (now - G.lastSend > 50) {
       G.lastSend = now;
       const r2 = v => Math.round(v * 100) / 100;
-      const flags = (car.input?.down ? 1 : 0) | (car.boostT > 0 ? 2 : 0) | (car.drifting ? 4 : 0) | (GP.active ? GP.flags() : 0);
+      const flags = (car.input?.down ? 1 : 0) | (car.boostT > 0 ? 2 : 0) | (car.drifting ? 4 : 0) | (GP.active ? GP.flags() : 0) | (car.hitCd > 0.1 || car.bumpT > 0 ? 1024 : 0);
       send({ t: 's', d: [r2(car.x), r2(car.y), r2(car.z), r2(car.yaw), r2(car.pitch), r2(car.roll), r2(car.vf), r2(car.steer), flags, r2(GP.active ? GP.prog() : (G.race?.prog || 0)), r2(car.vx), r2(car.vz)] });
     }
   } else engine(0, 0, false);
