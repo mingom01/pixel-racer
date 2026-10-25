@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mvkz2jyt';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvkz2jyt';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvkz2jyt';
-import { makeLocalServer } from './local.js?v=mvkz2jyt';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvkz2jyt';
+import { makeTextures } from './tex.js?v=mvnw5hx4';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvnw5hx4';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvnw5hx4';
+import { makeLocalServer } from './local.js?v=mvnw5hx4';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvnw5hx4';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -196,15 +196,17 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 addEventListener('pointerdown', () => initAudio());
-function readInput() {
+// noAuto: 카운트다운 중엔 자동 가속을 끔 (출발 부스터는 직접 눌러야 함)
+function readInput(noAuto) {
   if (G.chatOpen || G.menuOpen || G.garageOpen) return { up: false, down: false, steer: 0, drift: false };
   const k = keys;
   const left = k.KeyA || k.ArrowLeft || touch.left, right = k.KeyD || k.ArrowRight || touch.right;
   const kb = (left ? 1 : 0) - (right ? 1 : 0);
   const down = !!(k.KeyS || k.ArrowDown || touch.brake);
-  const auto = G.touch && settings.autoGas && !down;
+  // 자동 가속 (카트라이더처럼 W 안 눌러도 계속 가속). 브레이크(S)를 누르면 멈춤
+  const auto = !!settings.autoGas && !down && !noAuto;
   return {
-    up: !!(k.KeyW || k.ArrowUp || touch.gas || auto), down,
+    up: !!(k.KeyW || k.ArrowUp || touch.gas || auto), manual: !!(k.KeyW || k.ArrowUp || touch.gas), down,
     steer: kb !== 0 ? kb : (Number.isFinite(touch.steer) ? touch.steer : 0), drift: !!(k.Space || touch.drift),
   };
 }
@@ -310,7 +312,7 @@ function physics(dt) {
   const d = car.def;
   const now = performance.now();
   const frozen = (G.race && G.race.inRace && now < G.race.startAt) || GP.frozen();
-  const raw = readInput();
+  const raw = readInput(frozen);
   startBoost(raw, now);
   let inp = frozen ? { up: false, down: false, steer: raw.steer, drift: false } : raw;
   inp = prePhysics(dt, inp);
@@ -503,10 +505,10 @@ function physics(dt) {
 // 출발 부스터: GO 바로 직전(0.35초 안)에 가속을 누르면 완벽, 조금 일찍/늦게 누르면 보통. 너무 일찍 누르고 있으면 없음
 function startBoost(raw, now) {
   const startAt = GP.active ? GP.startAt() : (G.race && G.race.inRace ? G.race.startAt : 0);
-  if (!startAt || now > startAt + 600) { car.upAt = 0; car.prevUp = raw.up; return; }
-  if (raw.up && !car.prevUp) car.upAt = now;
-  if (!raw.up) car.upAt = 0;
-  car.prevUp = raw.up;
+  if (!startAt || now > startAt + 600) { car.upAt = 0; car.prevUp = raw.manual; return; }
+  if (raw.manual && !car.prevUp) car.upAt = now;
+  if (!raw.manual) car.upAt = 0;
+  car.prevUp = raw.manual;
   if (car.sbFor === startAt) return;
   const give = (kind) => {
     car.sbFor = startAt;

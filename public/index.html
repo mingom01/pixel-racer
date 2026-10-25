@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="픽셀 레이서">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
-<link rel="stylesheet" href="style.css?v=mvkz2jyt">
+<link rel="stylesheet" href="style.css?v=mvnw5hx4">
 </head>
 <body>
 <canvas id="c3d"></canvas>
@@ -85,7 +85,7 @@
     <span class="kbd">M</span> 전체 지도 &nbsp;
     <span class="kbd">B</span> 뒤 보기 &nbsp;
     <span class="kbd">Enter</span> 채팅 &nbsp;
-    <span class="kbd">Esc</span> 메뉴 (레이스 시작/차고)<br>
+    <span class="kbd">Esc</span> 메뉴 (레이스 시작/차고, 설정에서 <b>자동 가속</b>을 켜면 W 없이 계속 달려요)<br>
     길 위의 <span class="coin-ico"></span> 코인(5)과 초록 보석(25)을 모아 차고에서 새 차를 사세요. 레이스 순위에 따라 보너스 코인!
   </div>
 </div>
@@ -181,7 +181,7 @@
       <div class="row"><label class="lb">그림자</label><div class="seg" id="mShadow" style="flex:1"><button class="btn small" data-v="1">켜기</button><button class="btn small" data-v="0">끄기</button></div></div>
       <div class="row"><label class="lb">후방 거울</label><div class="seg" id="mMirror" style="flex:1"><button class="btn small" data-v="1">레이스 중</button><button class="btn small" data-v="2">항상</button><button class="btn small" data-v="0">끄기</button></div></div>
       <div class="row touch-only"><label class="lb">핸들</label><div class="seg" id="mSteer" style="flex:1"><button class="btn small" data-v="pad">드래그</button><button class="btn small" data-v="btn">버튼</button></div></div>
-      <div class="row touch-only"><label class="lb">자동 가속</label><div class="seg" id="mAuto" style="flex:1"><button class="btn small" data-v="1">켜기</button><button class="btn small" data-v="0">끄기</button></div></div>
+      <div class="row"><label class="lb">자동 가속</label><div class="seg" id="mAuto" style="flex:1"><button class="btn small" data-v="1">켜기</button><button class="btn small" data-v="0">끄기</button></div></div>
       <div class="row"><label class="lb">소리</label><input type="range" id="mVol" min="0" max="100" style="flex:1"></div>
     </div>
     <div class="muted" id="mVer" style="font-size:11px;margin-bottom:6px"></div>
@@ -256,9 +256,9 @@ function bootFail(msg) {
 addEventListener('error', e => { if (!window.__booted) bootFail(e.message || (e.target && e.target.src) || ''); }, true);
 setTimeout(() => { if (!window.__booted) bootFail('시간 초과'); }, 45000);
 </script>
-<script src="net-config.js?v=mvkz2jyt"></script>
-<script src="world.js?v=mvkz2jyt"></script>
-<script src="gp_rules.js?v=mvkz2jyt"></script>
-<script type="module" src="game.js?v=mvkz2jyt"></script>
+<script src="net-config.js?v=mvnw5hx4"></script>
+<script src="world.js?v=mvnw5hx4"></script>
+<script src="gp_rules.js?v=mvnw5hx4"></script>
+<script type="module" src="game.js?v=mvnw5hx4"></script>
 </body>
 </html>
