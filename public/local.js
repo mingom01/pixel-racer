@@ -134,7 +134,7 @@ export function makeLocalServer(onMsg) {
     for (const [id, at] of r.coinsDown) if (now >= at) { r.coinsDown.delete(id); up.push(id); }
     if (up.length) me.send({ t: 'coinUp', ids: up });
     if (r.kind === 'gp') GP.tick(r, now);
-  }, 200);
+  }, 50);
 
   const sock = { readyState: 1, offline: true, send: s => handle(typeof s === 'string' ? JSON.parse(s) : s), close() {} };
   setTimeout(() => {

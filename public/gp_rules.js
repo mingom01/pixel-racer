@@ -21,11 +21,105 @@ function makeGP({ W, broadcast, save, profileOf, log, records }) {
   const recView = () => { const o = {}, R = REC(); for (const k in R) o[k] = { time: R[k].time, name: R[k].name, car: R[k].car }; return o; };
   let objSeq = 0;
 
+  /* ---------- AI 봇: 서버(또는 혼자 하기)에서 코스 중심선을 따라 달리는 간단한 운전 ---------- */
+  const BOT_LV = {
+    easy: { name: '쉬움', speed: 0.78, lat: 12, acc: 0.8, brake: 22, cars: [34, 52] },
+    normal: { name: '보통', speed: 0.9, lat: 16, acc: 0.95, brake: 28, cars: [48, 62] },
+    hard: { name: '어려움', speed: 0.985, lat: 21, acc: 1.08, brake: 34, cars: [58, 74] },
+  };
+  const BOT_NAMES = ['번개', '질주', '드리프트', '터보', '로켓', '바람', '혜성', '천둥', '스피드', '불꽃'];
+  const isBot = id => typeof id === 'string' && id.startsWith('bot');
+  // 코스마다 점별 회전 반지름 (한 번만 계산)
+  function curveR(t) {
+    if (t._botR) return t._botR;
+    const n = t.path.length, out = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = t.tan[(i - 3 + n) % n], b = t.tan[(i + 3) % n], pa = t.path[(i - 3 + n) % n], pb = t.path[(i + 3) % n];
+      const ang = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1])));
+      out[i] = Math.min(2000, Math.hypot(pb[0] - pa[0], pb[1] - pa[1]) / Math.max(ang, 1e-4));
+    }
+    return (t._botR = out);
+  }
+  function makeBots(g) {
+    const lv = BOT_LV[g.set.botLv] || BOT_LV.normal, cnt = Math.max(0, Math.min(7, g.set.bots | 0));
+    const pool = W.CARS.filter(c => c.maxV >= lv.cars[0] && c.maxV <= lv.cars[1] && c.mass < 3);
+    const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
+    g.bots = [];
+    for (let k = 0; k < cnt; k++) {
+      const car = pool[Math.floor(Math.random() * pool.length)] || W.CARS[0];
+      g.bots.push({ id: 'bot' + (k + 1), name: '봇 ' + names[k % names.length], car: car.id, color: Math.floor(Math.random() * W.COLORS.length), lv: g.set.botLv || 'normal' });
+    }
+  }
+  const botInfo = b => ({ id: b.id, name: b.name, car: b.car, color: b.color, ver: '' });
+  function showBots(r) { for (const b of r.gp.bots || []) broadcast(r, { t: 'pu', p: botInfo(b) }); }
+  function hideBots(r) { for (const b of r.gp.bots || []) broadcast(r, { t: 'pl', id: b.id }); r.gp.bots = []; }
+  function botStep(r, now) {
+    const g = r.gp, run = g.run;
+    if (!run || !g.bots || !g.bots.length) return;
+    const t = W.trackById[run.track], n = t.path.length, L = t.length, step = L / n, ncp = t.cps.length, R = curveR(t);
+    const dt = Math.min(0.2, Math.max(0, (now - (run.botT || now)) / 1000));
+    run.botT = now;
+    const ps = {};
+    for (const b of g.bots) {
+      const p = run.racers.get(b.id);
+      if (!p) continue;
+      const lv = BOT_LV[b.lv] || BOT_LV.normal, car = W.carById[b.car] || W.CARS[0];
+      const lat = lv.lat * (t.theme === 'snow' ? 0.6 : 1);
+      if (p.s === undefined) { p.s = -(9 + p.slot * 5.5); p.v = 0; p.lane = [0.6, -0.6, 0][p.slot % 3]; p.wob = Math.random() * 6; }
+      if (now >= run.startAt && !p.done) {
+        const sm = ((p.s % L) + L) % L, i = Math.floor(sm / step) % n;
+        // 앞 120m 안의 커브를 보고 지금 낼 수 있는 속도
+        let want = car.maxV * lv.speed;
+        for (let k = 0; k < 24; k++) {
+          const j = (i + k) % n, vc = Math.sqrt(lat * R[j]), dist = k * step;
+          want = Math.min(want, Math.sqrt(vc * vc + 2 * lv.brake * dist));
+        }
+        if (now < (p.stunUntil || 0)) want = Math.min(want, car.maxV * 0.15);
+        if (now < (p.slowUntil || 0)) want = Math.min(want, car.maxV * 0.55);
+        if (p.v < want) p.v = Math.min(want, p.v + car.acc * lv.acc * dt);
+        else p.v = Math.max(want, p.v - lv.brake * dt);
+        p.s += p.v * dt;
+        // 바퀴 / 체크포인트 (사람과 같은 규칙: 출발선 통과 = 1)
+        const lapNo = Math.floor(p.s / L);
+        if (p.s >= 0) {
+          const inLap = p.s - lapNo * L;
+          let k2 = 0; while (k2 + 1 < ncp && t.cps[k2 + 1] * step <= inLap) k2++;
+          const c = 1 + lapNo * ncp + k2;
+          if (p.c < c) {
+            if (lapNo > (p.lapNo ?? 0)) { const lt = now - (p.lapStart || run.startAt); p.laps.push(lt); if (!p.best || lt < p.best) p.best = lt; p.lapStart = now; }
+            p.lapNo = lapNo; p.c = c;
+            if (!p.lapStart) p.lapStart = run.startAt;
+          }
+          if (run.phase === 'race' && p.s >= run.laps * L) {
+            p.done = true;
+            const place = run.finished.length + 1, time = now - run.startAt;
+            run.finished.push({ id: b.id, name: b.name, time, place, best: p.best });
+            if (!run.firstFin) { run.firstFin = now; run.endAt = now + 10000; }
+            broadcast(r, { t: 'gpFin', id: b.id, name: b.name, place, time, endIn: run.endAt - now });
+          }
+        }
+      }
+      // 화면용 위치
+      const sm = ((p.s % L) + L) % L, f = sm / step, i0 = Math.floor(f) % n, i1 = (i0 + 1) % n, u = f - Math.floor(f);
+      const a0 = t.path[i0], a1 = t.path[i1], tg = t.tan[i0], hw = t.hw ? t.hw[i0] : t.w / 2;
+      const off = (p.lane + Math.sin(now / 2300 + p.wob) * 0.18) * hw * 0.8;
+      const x = a0[0] + (a1[0] - a0[0]) * u + tg[1] * off, z = a0[1] + (a1[1] - a0[1]) * u - tg[0] * off;
+      let y = t.ey ? t.ey[i0] + (t.ey[i1] - t.ey[i0]) * u : 0;
+      if (t.gap && t.gap[i0]) y += 3; // 끊어진 다리는 붕 날아서
+      const yaw = Math.atan2(tg[0], tg[1]), segN = p.c > 0 ? (p.s - Math.floor(p.s / L) * L) : 0;
+      const prog = p.done ? run.laps * ncp + 1 : (p.c || 0) + Math.min(0.99, (segN % (L / ncp)) / (L / ncp));
+      const r2 = v => Math.round(v * 100) / 100;
+      ps[b.id] = [r2(x), r2(y), r2(z), r2(yaw), 0, 0, r2(p.v), 0, 0, r2(prog), r2(Math.sin(yaw) * p.v), r2(Math.cos(yaw) * p.v)];
+    }
+    broadcast(r, { t: 'st', ps });
+  }
+
   function init(r) {
     r.kind = 'gp';
     r.gp = {
       phase: 'lobby', races: 0, run: null, phaseEnd: 0, qres: null,
-      set: { track: ARENA_IDS[0], mode: 'speed', team: false, laps: 3, quali: false },
+      set: { track: ARENA_IDS[0], mode: 'speed', team: false, laps: 3, quali: false, bots: 0, botLv: 'normal' },
+      bots: [],
       pl: new Map(), // id → { ready, team, pts, wins, spec }
     };
   }
@@ -58,6 +152,7 @@ function makeGP({ W, broadcast, save, profileOf, log, records }) {
   function join(r, c) {
     r.gp.pl.set(c.id, { ready: false, team: autoTeam(r), pts: 0, wins: 0, spec: r.gp.phase !== 'lobby' });
     push(r);
+    for (const b of r.gp.bots || []) c.send({ t: 'pu', p: botInfo(b) });
     if (r.gp.run) c.send({ t: 'gpRun', run: runInfo(r, Date.now()), late: true });
   }
   function leave(r, c) {
@@ -91,7 +186,9 @@ function makeGP({ W, broadcast, save, profileOf, log, records }) {
     const ids = [...r.clients.keys()].filter(id => g.pl.has(id));
     for (const id of ids) g.pl.get(id).spec = false;
     g.curTrack = pickTrack(g.set);
-    begin(r, g.set.quali ? 'quali' : 'race', shuffle(ids));
+    hideBots(r); makeBots(g); showBots(r);
+    const order = shuffle(ids);
+    begin(r, g.set.quali ? 'quali' : 'race', g.set.quali ? order : [...order, ...g.bots.map(b => b.id)]);
   }
 
   function onCp(r, c, i, x, z) {
@@ -127,7 +224,7 @@ function makeGP({ W, broadcast, save, profileOf, log, records }) {
       p.done = true;
       const place = run.finished.length + 1, time = now - run.startAt;
       run.finished.push({ id: c.id, name: c.user.name, time, place, best: p.best });
-      if (!run.firstFin) { run.firstFin = now; run.endAt = now + Math.round(Math.max(12000, Math.min(40000, t.length / 40 * 1000 * 0.3))); }
+      if (!run.firstFin) { run.firstFin = now; run.endAt = now + 10000; } // 1등 골인 후 10초 뒤 리타이어
       broadcast(r, { t: 'gpFin', id: c.id, name: c.user.name, place, time, endIn: run.endAt - now });
       checkEnd(r);
     }
@@ -137,9 +234,9 @@ function makeGP({ W, broadcast, save, profileOf, log, records }) {
     const g = r.gp, run = g.run;
     if (!run) return;
     const now = Date.now();
-    if (run.racers.size === 0) { g.run = null; g.phase = 'lobby'; g.curTrack = null; broadcast(r, { t: 'gpEnd', cancelled: true }); push(r); return; }
+    if (![...run.racers.keys()].some(id => !isBot(id))) { g.run = null; g.phase = 'lobby'; g.curTrack = null; hideBots(r); broadcast(r, { t: 'gpEnd', cancelled: true }); push(r); return; }
     if (run.phase === 'quali') { if (now >= run.endAt) endQuali(r); return; }
-    const allDone = [...run.racers.values()].every(p => p.done);
+    const allDone = [...run.racers.values()].every(p => p.done); // 봇이 남아 있어도 1등 골인 10초 뒤 끝남
     if (allDone || (run.endAt && now >= run.endAt)) endRace(r);
   }
 
@@ -159,7 +256,8 @@ function makeGP({ W, broadcast, save, profileOf, log, records }) {
     const g = r.gp, run = g.run, now = Date.now();
     const results = run.finished.map(f => ({ ...f, dnf: false }));
     const dnf = [...run.racers.entries()].filter(([, p]) => !p.done).sort((a, b) => b[1].c - a[1].c);
-    for (const [id, p] of dnf) results.push({ id, name: r.clients.get(id)?.user.name || '?', time: null, place: null, best: p.best, dnf: true });
+    const nm = id => r.clients.get(id)?.user.name || (g.bots || []).find(b => b.id === id)?.name || '?';
+    for (const [id, p] of dnf) results.push({ id, name: nm(id), time: null, place: null, best: p.best, dnf: true });
     const mult = (0.25 + run.laps * 0.25) * Math.max(1, Math.min(2.5, W.trackById[run.track].length / 2600));
     for (const res of results) {
       res.rec = !!run.racers.get(res.id)?.record;
@@ -194,15 +292,17 @@ function makeGP({ W, broadcast, save, profileOf, log, records }) {
 
   function tick(r, now) {
     const g = r.gp;
+    if (g.run) botStep(r, now);
     if (g.run) checkEnd(r);
     if (g.phase === 'qres' && now >= g.phaseEnd) {
       const ids = g.qres.map(q => q.id).filter(id => r.clients.has(id));
-      if (ids.length) begin(r, 'race', ids);
+      if (ids.length) begin(r, 'race', [...ids, ...(g.bots || []).map(b => b.id)]);
       else { g.phase = 'lobby'; push(r); }
     }
     if (g.phase === 'results' && now >= g.phaseEnd) {
       g.phase = 'lobby';
       for (const p of g.pl.values()) p.ready = false;
+      hideBots(r);
       broadcast(r, { t: 'gpLobby' });
       push(r);
     }
@@ -221,6 +321,8 @@ function makeGP({ W, broadcast, save, profileOf, log, records }) {
         if (typeof s.team === 'boolean') g.set.team = s.team;
         if (typeof s.quali === 'boolean') g.set.quali = s.quali;
         if (Number.isInteger(s.laps)) g.set.laps = Math.max(1, Math.min(5, s.laps));
+        if (Number.isInteger(s.bots)) g.set.bots = Math.max(0, Math.min(7, s.bots));
+        if (BOT_LV[s.botLv]) g.set.botLv = s.botLv;
         push(r);
         break;
       }
@@ -240,8 +342,14 @@ function makeGP({ W, broadcast, save, profileOf, log, records }) {
         if (k === 'obj' && (msg.kind === 'banana' || msg.kind === 'water' || msg.kind === 'ice')) {
           broadcast(r, { t: 'gi', k, id: ++objSeq, kind: msg.kind, by: c.id, x: num(msg.x), z: num(msg.z), y: num(msg.y), x2: num(msg.x2), z2: num(msg.z2), y2: num(msg.y2) });
         } else if (k === 'rm') broadcast(r, { t: 'gi', k, id: msg.id | 0, by: c.id });
-        else if ((k === 'missile' || k === 'ufo') && r.clients.has(String(msg.to))) broadcast(r, { t: 'gi', k, from: c.id, to: String(msg.to) });
-        else if (k === 'zap' || k === 'ink' || k === 'devil') broadcast(r, { t: 'gi', k, from: c.id });
+        else if ((k === 'missile' || k === 'ufo') && (r.clients.has(String(msg.to)) || isBot(String(msg.to)))) {
+          broadcast(r, { t: 'gi', k, from: c.id, to: String(msg.to) });
+          const bp = g.run && g.run.racers.get(String(msg.to));
+          if (bp && isBot(String(msg.to))) bp.stunUntil = Date.now() + (k === 'ufo' ? 3200 : 1700);
+        } else if (k === 'zap' || k === 'ink' || k === 'devil') {
+          broadcast(r, { t: 'gi', k, from: c.id });
+          if (k === 'zap' && g.run) for (const [id, bp] of g.run.racers) if (isBot(id)) bp.slowUntil = Date.now() + 2800;
+        }
         else if (k === 'fx') broadcast(r, { t: 'gi', k, from: c.id, kind: String(msg.kind).slice(0, 12), to: msg.to ? String(msg.to) : null }, c);
         break;
       }

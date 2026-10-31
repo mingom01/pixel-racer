@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="픽셀 레이서">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css">
-<link rel="stylesheet" href="style.css?v=mvwaomyl">
+<link rel="stylesheet" href="style.css?v=mvwboe4m">
 </head>
 <body>
 <canvas id="c3d"></canvas>
@@ -209,6 +209,8 @@
         <div class="muted" id="glModeDesc"></div>
         <div class="row"><label class="lb">방식</label><div class="seg" id="glTeam" style="flex:1"><button class="btn small" data-v="false">개인전</button><button class="btn small" data-v="true">팀전</button></div></div>
         <div class="row"><label class="lb">바퀴</label><div class="seg" id="glLaps" style="flex:1"><button class="btn small" data-v="1">1</button><button class="btn small" data-v="2">2</button><button class="btn small" data-v="3">3</button><button class="btn small" data-v="4">4</button><button class="btn small" data-v="5">5</button></div></div>
+        <div class="row"><label class="lb">AI 봇</label><div class="seg" id="glBots" style="flex:1"><button class="btn small" data-v="0">없음</button><button class="btn small" data-v="1">1</button><button class="btn small" data-v="3">3</button><button class="btn small" data-v="5">5</button><button class="btn small" data-v="7">7</button></div></div>
+        <div class="row"><label class="lb">봇 실력</label><div class="seg" id="glBotLv" style="flex:1"><button class="btn small" data-v="easy">쉬움</button><button class="btn small" data-v="normal">보통</button><button class="btn small" data-v="hard">어려움</button></div></div>
         <div class="row"><label class="lb">예선</label><div class="seg" id="glQuali" style="flex:1"><button class="btn small" data-v="false">없음 (랜덤 출발)</button><button class="btn small" data-v="true">F1 예선 (타임어택)</button></div></div>
         <div class="muted">포인트: 1위 25 · 2위 18 · 3위 15 · 12 · 10 · 8 · 6 · 4 · 2 · 1, 최고 랩 +1</div>
       </div>
@@ -256,9 +258,9 @@ function bootFail(msg) {
 addEventListener('error', e => { if (!window.__booted) bootFail(e.message || (e.target && e.target.src) || ''); }, true);
 setTimeout(() => { if (!window.__booted) bootFail('시간 초과'); }, 45000);
 </script>
-<script src="net-config.js?v=mvwaomyl"></script>
-<script src="world.js?v=mvwaomyl"></script>
-<script src="gp_rules.js?v=mvwaomyl"></script>
-<script type="module" src="game.js?v=mvwaomyl"></script>
+<script src="net-config.js?v=mvwboe4m"></script>
+<script src="world.js?v=mvwboe4m"></script>
+<script src="gp_rules.js?v=mvwboe4m"></script>
+<script type="module" src="game.js?v=mvwboe4m"></script>
 </body>
 </html>

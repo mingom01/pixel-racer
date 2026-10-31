@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mvwaomyl';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvwaomyl';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvwaomyl';
-import { makeLocalServer } from './local.js?v=mvwaomyl';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvwaomyl';
+import { makeTextures } from './tex.js?v=mvwboe4m';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvwboe4m';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvwboe4m';
+import { makeLocalServer } from './local.js?v=mvwboe4m';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvwboe4m';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -326,7 +326,7 @@ function physics(dt) {
   let vf = car.vx * fx + car.vz * fz, vl = car.vx * lx + car.vz * lz;
   const surf = W.surfaceAt(car.x, car.z, car.y + 0.5);
   car.surf = surf;
-  const offPen = !d.off && surf === 'grass' ? 0.55 : (!d.off && surf === 'dirt' ? 0.85 : (surf === 'walk' ? 0.9 : (surf === 'runoff' ? (d.off ? 0.85 : 0.65) : (surf === 'water' ? 0.3 : (surf === 'mud' ? (d.off ? 0.85 : 0.6) : 1)))));
+  const offPen = !d.off && surf === 'grass' ? 0.55 : (!d.off && surf === 'dirt' ? 0.85 : (surf === 'walk' ? 0.9 : (surf === 'runoff' ? (d.off ? 0.85 : 0.65) : (surf === 'water' ? 0.3 : (surf === 'mud' ? 0.5 : 1)))));
   const maxV = d.maxV * offPen;
 
   if (car.grounded) {
@@ -341,6 +341,8 @@ function physics(dt) {
       vf -= Math.sign(vf) * Math.min(Math.abs(vf), (1.8 + Math.abs(vf) * 0.06) * dt);
     }
     if (vf > maxV && car.boostT <= 0) vf -= (vf - maxV) * (offPen < 1 ? 2.2 : 0.9) * dt;
+    // 진흙: 부스터/니트로를 써도 최고 속도의 절반
+    if (surf === 'mud' && vf > maxV) vf -= (vf - maxV) * Math.min(1, 6 * dt);
     const bp = W.boostAt(car.x, car.z, car.y);
     if (bp && !frozen && car.boostCd <= 0) {
       const along = car.vx * bp.fx + car.vz * bp.fz;

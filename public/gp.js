@@ -1,7 +1,7 @@
 // 레이싱 방 (그랑프리) 클라이언트: 경기장, 대기실, 예선/결승, 아이템전/스피드전, 결과
 import * as THREE from './lib/three.module.min.js';
-import { canvasOf, tex, signTexture } from './tex.js?v=mvwaomyl';
-import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mvwaomyl';
+import { canvasOf, tex, signTexture } from './tex.js?v=mvwboe4m';
+import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mvwboe4m';
 
 const W = WORLD;
 const $ = id => document.getElementById(id);
@@ -186,12 +186,27 @@ function buildArena(a) {
     if (seaCut(x)) return 0;
     const rd = W.roadDist(a, x, z, 3), d = rd.d;
     const base = !floating && rd.r && !(rd.r === a ? nofill[rd.k] : rd.r.tunnel) && rd.e < 20 ? Math.max(0, rd.e - 0.45) : 0;
-    if (d < 7) return base;
-    const f = Math.min(1, (d - 7) / 90), sm = f * f * (3 - 2 * f);
-    const far = Math.min(1, Math.max(0, (d - 150) / 250));
-    const hill = amp ? amp * noise(x, z) * (1 + far * 1.2) : 0;
-    return base + (hill - base) * sm;
+    let h;
+    if (d < 7) h = base;
+    else {
+      const f = Math.min(1, (d - 7) / 90), sm = f * f * (3 - 2 * f);
+      const far = Math.min(1, Math.max(0, (d - 150) / 250));
+      const hill = amp ? amp * noise(x, z) * (1 + far * 1.2) : 0;
+      h = base + (hill - base) * sm;
+    }
+    // 근처(벽 바깥 20m 안)에 더 낮은 길이 있으면 땅이 그 길을 덮지 않게 그 높이 아래로
+    const lo = lowRoad(x, z);
+    return lo === null ? h : Math.min(h, Math.max(0, lo - 0.45));
   };
+  function lowRoad(x, z) {
+    let lo = null;
+    const C = 40, cx = Math.floor(x / C), cz = Math.floor(z / C);
+    for (const r of [a, ...a.alts]) for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const arr = r.grid.get((cx + i) * 100003 + (cz + j));
+      if (arr) for (const k of arr) { const q = r.path[k]; if (Math.hypot(q[0] - x, q[1] - z) - r.wbs[k] < 20 && (lo === null || r.ey[k] < lo)) lo = r.ey[k]; }
+    }
+    return lo;
+  }
   a.terrainH = terrainH;
   {
     const G = 16, x0 = Math.floor((b.x1 - M) / G) * G, z0 = Math.floor((b.z1 - M) / G) * G;
@@ -278,9 +293,12 @@ function buildArena(a) {
   g.add(startLine(a, T), gantry(a, T));
   // 지름길 입구 표지판 (노란 판, 지름길 쪽 바깥에)
   for (const r of a.alts) {
-    const k = Math.min(r.path.length - 1, 12), pp = r.path[k], tg = r.tan[k], mp = a.path[r.from];
-    const side = ((pp[0] - mp[0]) * tg[1] - (pp[1] - mp[1]) * tg[0]) >= 0 ? 1 : -1, o = r.wbs[k] + 1.5;
-    const x = pp[0] + tg[1] * side * o, z = pp[1] - tg[0] * side * o, e = r.ey[k];
+    // 갈라지기 30m 전, 본 도로 갓길(지름길이 나가는 쪽 벽 바깥)에 세움 → 길 위에 서 있지 않게
+    const n = a.path.length, mi = (r.from - 6 + n) % n, mp = a.path[mi], tg = a.tan[mi], ap = r.path[Math.min(r.path.length - 1, 14)];
+    const side = ((ap[0] - mp[0]) * tg[1] - (ap[1] - mp[1]) * tg[0]) >= 0 ? 1 : -1, o = a.wbs[mi] + 2.6;
+    const x = mp[0] + tg[1] * side * o, z = mp[1] - tg[0] * side * o, e = a.ey[mi];
+    const onRoad = W.trackAt(a, x, z, e + 3);
+    if (onRoad && onRoad.d < onRoad.hw + 1.5) continue;
     const st = signTexture('지름길 >>', '#f2c230', '#2a2a2e');
     const board = new THREE.Mesh(boxUV(7, 2.4, 0.3, 2), [lam({ color: 0x3a3a44 }), lam({ color: 0x3a3a44 }), lam({ color: 0x3a3a44 }), lam({ color: 0x3a3a44 }), lam({ map: st }), lam({ map: st })]);
     board.position.set(x, e + 4.2, z); board.rotation.y = Math.atan2(tg[0], tg[1]) + Math.PI; board.castShadow = true; g.add(board);
@@ -336,6 +354,17 @@ function buildArena(a) {
     for (const [x, z, e, yaw, w] of rocks) {
       const h = H + 4 + R() * 6;
       parts.push([x, z, yaw, -(w + 13), 24, e + h, 0], [x, z, yaw, w + 13, 24, e + h, 0], [x, z, yaw, 0, w * 2 + 50, 5 + R() * 4, e + H + 0.5], [x, z, yaw, (R() - 0.5) * 10, w + 18, 4 + R() * 5, e + H + 5]);
+    }
+    // 산 블록이 다른 길(차가 다니는 높이)을 덮으면 그 블록은 뺌
+    for (let k = parts.length - 1; k >= 0; k--) {
+      const [x, z, yaw, side, wid, h, y0] = parts[k], cx = x + Math.cos(yaw) * side, cz = z - Math.sin(yaw) * side;
+      const ax = Math.sin(yaw), az = Math.cos(yaw), px = Math.cos(yaw), pz = -Math.sin(yaw);
+      let hit = false;
+      for (const fa of [-0.5, 0, 0.5]) for (const fp of [-0.5, 0, 0.5]) {
+        const sx = cx + ax * fa * 22 + px * fp * wid, sz = cz + az * fa * 22 + pz * fp * wid, q = W.trackAt(a, sx, sz, y0 + h);
+        if (q && q.d < q.hw + 2 && q.e + 4.5 > y0) hit = true;
+      }
+      if (hit) parts.splice(k, 1);
     }
     const rm2 = new THREE.InstancedMesh(boxUV(1, 1, 1, 4), lam({ color: rockCol }), parts.length);
     parts.forEach(([x, z, yaw, side, wid, h, y0], k) => {
@@ -410,7 +439,7 @@ function buildArena(a) {
   // 밤: 트랙 가로등
   if (th.glow) {
     const pts = [];
-    for (const r of roads) for (let i = 0; i < r.path.length; i += 10) if (!r.gap[i]) for (const s of [1, -1]) { const pp = r.path[i], tg = r.tan[i], o = r.wbs[i] + 1.5; pts.push([pp[0] + tg[1] * s * o, pp[1] - tg[0] * s * o, r.ey[i]]); }
+    for (const r of roads) for (let i = 0; i < r.path.length; i += 10) if (!r.gap[i]) for (const s of [1, -1]) { const pp = r.path[i], tg = r.tan[i], o = r.wbs[i] + 1.5; const lx = pp[0] + tg[1] * s * o, lz = pp[1] - tg[0] * s * o, q = W.trackAt(a, lx, lz, r.ey[i] + 3); if (!q || q.d > q.hw + 1) pts.push([lx, lz, r.ey[i]]); }
     const pole = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, 7, 0.3), lam({ color: 0x30344a }), pts.length);
     const head = new THREE.InstancedMesh(new THREE.BoxGeometry(0.9, 0.5, 0.9), new THREE.MeshBasicMaterial({ color: 0xfff0c0 }), pts.length);
     pts.forEach(([x, z, e], i) => { m4.makeTranslation(x, e + 3.5, z); pole.setMatrixAt(i, m4); m4.makeTranslation(x, e + 7.1, z); head.setMatrixAt(i, m4); });
@@ -579,14 +608,8 @@ function buildTrackside(a, g, th, T, R) {
     const roof = new THREE.Mesh(boxUV(18, 0.6, 72, 4), conc); roof.position.set(6, 9, 0); roof.castShadow = true; st.add(roof);
     g.add(st);
   };
-  stand(6, 1);
-  let made = 0;
-  for (let i = Math.floor(n * 0.3); i < n - 20 && made < 2; i += 7) {
-    if (Math.abs(curv(i)) > 0.03 || !okHere(i) || a.ey[i] > 1.5) continue;
-    const sd = made ? 1 : -1, [x, z] = side(i, sd, a.wbs[i] + 18);
-    if (!free(x, z, 0) || W.roadDist(a, x, z, 2).d < 12) continue;
-    stand(i, sd); made++; i += Math.floor(n * 0.25);
-  }
+  // 계단식 관중석(알록달록 네모 무늬 벽)은 이상해 보여서 없앰 → 철망 뒤 관중만
+  void stand;
 }
 
 // 움직이는 장애물의 지금 모양 (모든 사람이 같은 시계(Date.now)로 계산해서 대충 맞음)
@@ -971,7 +994,7 @@ function renderLobby() {
   if (rnd[set.track]) $('glTrackDesc').innerHTML = `<b>${rnd[set.track]}</b> · 레이스를 시작할 때 무작위로 코스를 골라요.`;
   else $('glTrackDesc').innerHTML = `<span class="diff d${a.diff}">${'■'.repeat(a.diff)}${'□'.repeat(5 - a.diff)} ${DIFF_NAME[a.diff]}</span> ${(a.length / 1000).toFixed(1)}km · ${X.esc(a.desc)}${trackTags(a)}${recTxt}`;
   const seg = (id, v) => document.querySelectorAll(`#${id} button`).forEach(b => { b.classList.toggle('on', b.dataset.v === String(v)); b.disabled = !host; });
-  seg('glMode', set.mode); seg('glTeam', set.team); seg('glQuali', set.quali); seg('glLaps', set.laps);
+  seg('glMode', set.mode); seg('glTeam', set.team); seg('glQuali', set.quali); seg('glLaps', set.laps); seg('glBots', set.bots || 0); seg('glBotLv', set.botLv || 'normal');
   $('glTrack').disabled = !host;
   $('glModeDesc').textContent = set.mode === 'item'
     ? '아이템전: 물음표 박스에서 아이템을 얻어 쓰세요. (E / Shift / 아이템 버튼)'
@@ -1009,6 +1032,8 @@ function bindUI() {
   segBind('glTeam', v => ({ team: v === 'true' }));
   segBind('glQuali', v => ({ quali: v === 'true' }));
   segBind('glLaps', v => ({ laps: +v }));
+  segBind('glBots', v => ({ bots: +v }));
+  segBind('glBotLv', v => ({ botLv: v }));
   $('glGo').onclick = () => { X.sfx.click(); X.send({ t: isHost() ? 'gpStart' : 'gpReady' }); };
   $('glRed').onclick = () => X.send({ t: 'gpTeam', team: 'red' });
   $('glBlue').onclick = () => X.send({ t: 'gpTeam', team: 'blue' });
