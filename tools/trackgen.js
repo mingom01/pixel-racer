@@ -28,7 +28,7 @@ function RB(r0, kind, o = {}) {
 // o.mid: 가운데 커브 옵션(높이·아이템·터널 등), o.e: 끝 높이
 function BG(dir, r, o = {}) {
   const a = dir === 'R' ? R : L, b = dir === 'R' ? L : R;
-  return [a(75, r, { ...(o.in || {}) }), b(150, r, { ...(o.mid || {}) }), a(75, r, { ...(o.out || {}), ...(o.e !== undefined ? { e: o.e } : {}) })];
+  return [a(90, r, { ...(o.in || {}) }), b(180, r, { ...(o.mid || {}) }), a(90, r, { ...(o.out || {}), ...(o.e !== undefined ? { e: o.e } : {}) })];
 }
 function build(def) {
   const segs = def.segs.flat(Infinity);

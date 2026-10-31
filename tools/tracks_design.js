@@ -20,7 +20,7 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       R(90, 80), S(300, { e: 6, jump: [0.4, 3.5], item: 0.8 }), S(200, { e: 0 }),
       R(90, 60), X({ item: 0.4 }), R(90, 60), X(),
     ],
-    shortcuts: [{ from: 'A', to: 'B', w: 11, jumps: [[0.5, 3.5]] }],
+    shortcuts: [{ from: 'A', to: 'B', boost: 0.12, w: 11, jumps: [[0.5, 3.5]] }],
   },
   {
     id: 'ice', stretch: 1.4, name: '아이스 드리프트', theme: 'snow', diff: 3, w: 16,
@@ -55,7 +55,7 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       R(90, 70, { e: 10 }), S(300, { e: 4, tunnel: true }), R(45, 80), L(45, 80), S(200, { e: 0, jump: [0.5, 3.5], item: 0.2 }),
       R(90, 60), X({ item: 0.5 }), R(90, 60), X(),
     ],
-    shortcuts: [{ from: 'A', to: 'B', w: 11, tunnel: true, e: 14 }],
+    shortcuts: [{ from: 'A', to: 'B', boost: 0.12, w: 11, tunnel: true, e: 14 }],
   },
   {
     id: 'autumn', stretch: 1.4, name: '단풍 고개', theme: 'autumn', diff: 3, w: 16,
@@ -81,7 +81,7 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       S(200, { label: 'A', item: 0.5, e: 0 }), BG('R', 120, { mid: { item: 0.6 } }), S(150, { label: 'B' }),
       RB(32, 'right'), S(300, { item: 0.5, e: 8, jump: [0.8, 3] }), R(90, 40, { e: 4 }), X({ e: 0 }), R(90, 40), X(),
     ],
-    shortcuts: [{ from: 'A', to: 'B', w: 10, tunnel: true }],
+    shortcuts: [{ from: 'A', to: 'B', boost: 0.12, w: 10, tunnel: true }],
   },
   {
     id: 'rainbow', stretch: 1.5, name: '무지개 로드', theme: 'rainbow', diff: 3, w: 20, e0: 20,
@@ -100,7 +100,7 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       R(90, 40, { e: 10 }), S(200, { tunnel: true, e: 12 }), S(150, { e: 4 }), U('L', 25), S(150, { item: 0.5 }), U('R', 25), S(200),
       R(90, 50, { e: 0 }), X({ mud: [0.4, 40], item: 0.6 }), R(90, 50), X(),
     ],
-    shortcuts: [{ from: 'A', to: 'B', w: 9, jumps: [[0.5, 3]] }],
+    shortcuts: [{ from: 'A', to: 'B', boost: 0.12, w: 9, jumps: [[0.5, 3]] }],
   },
   {
     id: 'dusk', stretch: 1.4, name: '선셋 스피드웨이', theme: 'dusk', diff: 1, w: 24,
@@ -134,7 +134,7 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       S(150, { label: 'A' }), BG('R', 100, { in: { mover: { k: 'crush', at: 0.6, period: 3.2 } }, mid: { oil: [0.3, 30], item: 0.6 }, out: { mover: { k: 'slide', at: 0.4, period: 2.2 } } }), S(150, { label: 'B' }),
       R(90, 40, { e: 6 }), S(250, { e: 10, mover: { k: 'spin', at: 0.5, period: 4 }, item: 0.2 }), R(90, 40, { e: 10 }), X({ oil: [0.5, 30], item: 0.3, e: 2 }), R(90, 40), X(),
     ],
-    shortcuts: [{ from: 'A', to: 'B', w: 9, jumps: [[0.5, 3]], e: 0 }],
+    shortcuts: [{ from: 'A', to: 'B', boost: 0.12, w: 9, jumps: [[0.5, 3]], e: 0 }],
   },
   {
     id: 'tomb', stretch: 1.3, name: '피라미드 유적', theme: 'tomb', diff: 3, w: 18,
@@ -152,7 +152,7 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       S(150, { e: 10, label: 'A' }), BG('L', 120, { mid: { e: 14, item: 0.5 }, e: 10 }), S(150, { e: 10, label: 'B' }),
       S(300, { e: 12, gap: [0.5, 24, 3.2] }), R(90, 70, { e: 12 }), X({ e: 12, item: 0.5 }), S(300, { e: 12, gap: [0.5, 22, 3] }), S(200, { e: 0 }), R(90, 70), X(),
     ],
-    shortcuts: [{ from: 'A', to: 'B', w: 10, e: 10, jumps: [[0.5, 3]] }],
+    shortcuts: [{ from: 'A', to: 'B', boost: 0.12, w: 10, e: 10, jumps: [[0.5, 3]] }],
   },
   {
     id: 'icecastle', stretch: 1.3, name: '얼음 성 미로', theme: 'snow', diff: 5, w: 13,
@@ -180,7 +180,7 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       U('L', 25), S(150, { item: 0.5 }), U('R', 25), S(200),
       R(90, 60), X({ mud: [0.5, 40], item: 0.4 }), R(90, 60), X(),
     ],
-    shortcuts: [{ from: 'A', to: 'B', w: 11, mud: true }],
+    shortcuts: [{ from: 'A', to: 'B', boost: 0.12, w: 11, jumps: [[0.55, 3]] }],
   },
   {
     id: 'lavahell', stretch: 1.25, name: '용암 지옥 다리', theme: 'volcano', diff: 5, w: 13,
@@ -199,7 +199,7 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       S(100, { label: 'A' }), BG('R', 130, { mid: { e: 10, item: 0.5 }, e: 0 }), S(100, { e: 0, label: 'B' }),
       R(90, 100), S(300, { e: 8, jump: [0.6, 3], item: 0.3 }), S(200, { e: 0 }), RB(40, 'straight'), R(90, 100), X({ item: 0.5 }), R(90, 100), X(),
     ],
-    shortcuts: [{ from: 'A', to: 'B', w: 12, mud: true }],
+    shortcuts: [{ from: 'A', to: 'B', boost: 0.12, w: 12, jumps: [[0.55, 3]] }],
   },
   {
     id: 'autumnpass', stretch: 1.15, name: '단풍 대협곡 고개', theme: 'autumn', diff: 4, w: 15,
@@ -238,7 +238,7 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       S(200, { label: 'A' }), BG('R', 120, { mid: { tunnel: true } }), S(150, { label: 'B' }),
       R(90, 60), S(400, { tunnel: true, item: 0.5 }), S(200, { e: 12 }), R(90, 60, { e: 14 }), X({ e: 14, item: 0.5 }), S(150, { e: 0 }), R(90, 60), X(),
     ],
-    shortcuts: [{ from: 'A', to: 'B', w: 10 }],
+    shortcuts: [{ from: 'A', to: 'B', boost: 0.12, w: 10 }],
   },
   {
     id: 'roundcity', name: '로타리 시티', theme: 'port', diff: 2, w: 18,
@@ -248,7 +248,7 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       S(200, { label: 'A', item: 0.5, e: 4 }), BG('R', 130, { mid: { item: 0.5 } }), S(150, { label: 'B' }),
       RB(36, 'right'), S(300, { item: 0.5, e: 0 }), R(90, 40), X(), RB(34, 'straight'), R(90, 40), X(),
     ],
-    shortcuts: [{ from: 'A', to: 'B', w: 12, mud: true }],
+    shortcuts: [{ from: 'A', to: 'B', boost: 0.12, w: 12, jumps: [[0.55, 3]] }],
   },
   {
     id: 'village', name: '시골 마을 지름길', theme: 'grass', diff: 3, w: 16,
@@ -259,6 +259,6 @@ module.exports = ({ S, R, L, U, X, RB, BG }) => [
       R(90, 50), S(100, { label: 'A3' }), BG('L', 120, { mid: { item: 0.5 } }), S(100, { label: 'B3' }), S(200),
       R(90, 50), X({ item: 0.5 }), R(90, 50), X(),
     ],
-    shortcuts: [{ from: 'A1', to: 'B1', w: 11, jumps: [[0.5, 3.5]] }, { from: 'A2', to: 'B2', w: 12, mud: true }, { from: 'A3', to: 'B3', w: 11, tunnel: true }],
+    shortcuts: [{ from: 'A1', to: 'B1', boost: 0.12, w: 11, jumps: [[0.5, 3.5]] }, { from: 'A2', to: 'B2', boost: 0.12, w: 12, jumps: [[0.55, 3]] }, { from: 'A3', to: 'B3', boost: 0.12, w: 11, tunnel: true }],
   },
 ];
