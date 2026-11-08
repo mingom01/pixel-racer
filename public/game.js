@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mvwboe4m';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mvwboe4m';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mvwboe4m';
-import { makeLocalServer } from './local.js?v=mvwboe4m';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mvwboe4m';
+import { makeTextures } from './tex.js?v=mw7btpaw';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mw7btpaw';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mw7btpaw';
+import { makeLocalServer } from './local.js?v=mw7btpaw';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mw7btpaw';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);

@@ -465,7 +465,7 @@ setInterval(() => {
     for (const [id, at] of r.coinsDown) if (now >= at) { r.coinsDown.delete(id); up.push(id); }
     if (up.length) broadcast(r, { t: 'coinUp', ids: up });
     if (r.race) checkRaceEnd(r);
-    if (r.kind === 'gp') GP.tick(r, now);
+    if (r.kind === 'gp') { try { GP.tick(r, now); } catch (e) { log('방 ' + r.code + ' 진행 오류: ' + (e && e.stack || e)); } }
   }
 }, 50);
 
@@ -480,6 +480,10 @@ STORE.get('__records').then(d => { if (!d) STORE.users.__records = { tracks: {} 
 GP = makeGP({ W, broadcast, save, profileOf, log, records: () => (STORE.users.__records = STORE.users.__records || { tracks: {} }).tracks });
 
 function log(s) { console.log(new Date().toLocaleTimeString() + '  ' + s); }
+
+// 예상 못 한 오류가 나도 서버 전체가 꺼지지 않게 (기록만 남김)
+process.on('uncaughtException', e => log('오류: ' + (e && e.stack || e)));
+process.on('unhandledRejection', e => log('오류(promise): ' + (e && e.stack || e)));
 
 // 배포 서버가 꺼질 때(재배포 등) 마지막 변경사항 저장
 for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, async () => { log('종료 중... 저장'); await STORE.flush(); process.exit(0); });
