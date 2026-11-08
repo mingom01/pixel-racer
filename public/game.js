@@ -1,10 +1,10 @@
 // 픽셀 레이서 — 메인 (렌더링 / 물리 / 네트워크 / UI)
 import * as THREE from './lib/three.module.min.js';
-import { makeTextures } from './tex.js?v=mw7btpaw';
-import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mw7btpaw';
-import { initAudio, engine, sfx, setVolume } from './audio.js?v=mw7btpaw';
-import { makeLocalServer } from './local.js?v=mw7btpaw';
-import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mw7btpaw';
+import { makeTextures } from './tex.js?v=mw7d383h';
+import { buildWorld, makeCar, makeNameTag, makeGate, makeCoinAssets, carShape } from './models.js?v=mw7d383h';
+import { initAudio, engine, sfx, setVolume } from './audio.js?v=mw7d383h';
+import { makeLocalServer } from './local.js?v=mw7d383h';
+import { GP, initGP, enterGP, leaveGP, gpMsg, gpFrame, prePhysics, respawnGP, useItem, swapItem, camTarget, nextSpectate, drawMap as gpDrawMap, toggleLobby } from './gp.js?v=mw7d383h';
 
 const W = window.WORLD;
 const $ = id => document.getElementById(id);
@@ -1556,6 +1556,7 @@ function frame() {
   updateParts(dt);
   T.boost.offset.y = (T.boost.offset.y - dt * 1.5) % 1;
   updateCamera(dt);
+  if (window.__camHook) window.__camHook(camera); // 테스트용 (위에서 내려다보기 등)
   renderer.render(scene, camera);
   renderMirror();
   drawMaps();
@@ -1565,7 +1566,7 @@ function frame() {
 /* ================= 시작 ================= */
 initGP({ scene, camera, hemi, sun, T, car, G, send, spawnCar, toast, bigText, sfx, fmtTime, esc, colorCss, worldRoot, coinGroup, spawnPart, camState, openGarage, leaveRoom: () => $('mLeave').click() });
 if (COARSE) setTouch(true);
-window.__pr = { G, car, keys, touch, spawnCar, physics, updateRemotes, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); overtakeStep(performance.now()); } } };
+window.__pr = { G, car, keys, touch, scene, spawnCar, physics, updateRemotes, step: n => { for (let i = 0; i < n; i++) { physics(STEP); gpFrame(STEP, performance.now()); overtakeStep(performance.now()); } } };
 // 서버 설정은 기다리지 않고 따로 받음 (무료 서버가 자고 있으면 깨는 데 1분쯤 걸려서, 그동안 화면이 멈춘 것처럼 보이지 않게)
 $('offlineBtn').onclick = () => goOffline();
 requestAnimationFrame(frame);

@@ -427,6 +427,7 @@ function handle(c, msg) {
     case 'honk': if (r) broadcast(r, { t: 'honk', id: c.id }, c); break;
     case 'bump': {
       // 범퍼카: 들이받은 쪽이 맞은 차에 밀림 전달
+      if (r && r.kind === 'gp' && String(msg.to).startsWith('bot')) { GP.handle(c, r, msg); return; }
       const o = r && r.clients.get(String(msg.to));
       if (!o || o === c || !Array.isArray(msg.dv)) return;
       const lim = v => Math.max(-60, Math.min(60, +v || 0));

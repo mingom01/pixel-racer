@@ -1,7 +1,7 @@
 // 레이싱 방 (그랑프리) 클라이언트: 경기장, 대기실, 예선/결승, 아이템전/스피드전, 결과
 import * as THREE from './lib/three.module.min.js';
-import { canvasOf, tex, signTexture } from './tex.js?v=mw7btpaw';
-import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mw7btpaw';
+import { canvasOf, tex, signTexture } from './tex.js?v=mw7d383h';
+import { ribbon, startLine, gantry, boxUV, flatQuad, wedgeGeo } from './models.js?v=mw7d383h';
 
 const W = WORLD;
 const $ = id => document.getElementById(id);
@@ -235,6 +235,19 @@ function buildArena(a) {
   const roadMat = a.theme === 'rainbow' ? new THREE.MeshBasicMaterial({ map: road }) : lam({ map: road });
   const runMat = a.theme === 'volcano' ? new THREE.MeshBasicMaterial({ map: runoff }) : lam({ map: runoff });
   const curbMat = th.glow ? new THREE.MeshBasicMaterial({ map: T.curb, color: 0xff80d0 }) : lam({ map: T.curb });
+  // 길 r 의 중심선까지 거리 (가까운 선분 기준)
+  const nearRoad = (r, x, z) => {
+    const m = r.path.length; let bd = 1e9, bi = -1, bu = 0;
+    for (let i = 0; i < (r.open ? m - 1 : m); i++) {
+      const p0 = r.path[i], p1 = r.path[(i + 1) % m], dx = p1[0] - p0[0], dz = p1[1] - p0[1], l2 = dx * dx + dz * dz || 1;
+      if (Math.abs(x - p0[0]) > 40 || Math.abs(z - p0[1]) > 40) continue;
+      const u = Math.max(0, Math.min(1, ((x - p0[0]) * dx + (z - p0[1]) * dz) / l2)), d = Math.hypot(x - p0[0] - dx * u, z - p0[1] - dz * u);
+      if (d < bd) { bd = d; bi = i; bu = u; }
+    }
+    if (bi < 0) return null;
+    const i2 = (bi + 1) % m;
+    return { d: bd, hw: r.hw[bi] + (r.hw[i2] - r.hw[bi]) * bu, e: r.ey[bi] + (r.ey[i2] - r.ey[bi]) * bu };
+  };
   const off = m => { const c = m.clone(); c.polygonOffset = true; c.polygonOffsetFactor = -2; c.polygonOffsetUnits = -2; return c; };
   const deckMat = lam({ map: th.deck ? texOf(th.deck) : T.concrete, side: THREE.DoubleSide });
   const pillarsAt = [];
@@ -243,11 +256,27 @@ function buildArena(a) {
     const hw = i => r.hw[i], wbo = i => r.wbs[i] + 0.5;
     const skip = i => (r.open && i >= n - 1) || r.gap[i] || r.gap[(i + 1) % n];
     const rm = alt ? off(lam({ map: TX.dirtRoad })) : roadMat, um = alt ? off(runMat) : runMat, cm = alt ? off(curbMat) : curbMat;
-    add(ribbon(r, i => -hw(i), hw, 0.06, 8, skip), rm);
-    add(ribbon(r, i => hw(i) + 1.6, wbo, 0.04, 4, skip), um);
-    add(ribbon(r, i => -wbo(i), i => -hw(i) - 1.6, 0.04, 4, skip), um);
-    add(ribbon(r, hw, i => hw(i) + 1.6, 0.09, 4, skip), cm);
-    add(ribbon(r, i => -hw(i) - 1.6, i => -hw(i), 0.09, 4, skip), cm);
+    // 갈림길: 다른 길 위에 걸치는 연석/갓길은 그리지 않고, 지름길이 본길과 겹치는 부분은 아스팔트로
+    const others = roads.filter(o => o !== r);
+    const covered = (i, off2, slack = -0.3) => {
+      const i2 = (i + 1) % n, pa = r.path[i], pb = r.path[i2], ta = r.tan[i], tb = r.tan[i2];
+      const x = (pa[0] + pb[0]) / 2 + (ta[1] + tb[1]) / 2 * off2, z = (pa[1] + pb[1]) / 2 - (ta[0] + tb[0]) / 2 * off2, e = (r.ey[i] + r.ey[i2]) / 2;
+      return others.some(o => { const q = nearRoad(o, x, z); return q && q.d < q.hw + slack && Math.abs(q.e - e) < 3; });
+    };
+    const sideSkip = (sd, a1, a2, slack) => { const c = []; for (let i = 0; i < n; i++) c.push(others.length && (covered(i, sd * a1(i), slack) || covered(i, sd * a2(i), slack))); return i => c[i] || skip(i); };
+    // 연석: 다른 길 위에 걸치면 생략 / 갓길: 다른 길(연석 포함) 근처면 생략
+    const skP = sideSkip(1, i => hw(i) + 0.4, i => hw(i) + 1.2, -0.3), skN = sideSkip(-1, i => hw(i) + 0.4, i => hw(i) + 1.2, -0.3);
+    const ruP = sideSkip(1, i => hw(i) + 1.8, wbo, 1.6), ruN = sideSkip(-1, i => hw(i) + 1.8, wbo, 1.6);
+    if (alt) {
+      // 본길과 겹치는 입구/출구는 본길처럼 포장, 완전히 갈라진 뒤부터 흙길
+      const fork = []; for (let i = 0; i < n; i++) fork.push(covered(i, hw(i) * 0.6) || covered(i, -hw(i) * 0.6) || covered(i, 0));
+      add(ribbon(r, i => -hw(i), hw, 0.06, 8, i => !fork[i] || skip(i)), off(roadMat));
+      add(ribbon(r, i => -hw(i), hw, 0.06, 8, i => fork[i] || skip(i)), rm);
+    } else add(ribbon(r, i => -hw(i), hw, 0.06, 8, skip), rm);
+    add(ribbon(r, i => hw(i) + 1.6, wbo, 0.04, 4, ruP), um);
+    add(ribbon(r, i => -wbo(i), i => -hw(i) - 1.6, 0.04, 4, ruN), um);
+    add(ribbon(r, hw, i => hw(i) + 1.6, 0.09, 4, skP), cm);
+    add(ribbon(r, i => -hw(i) - 1.6, i => -hw(i), 0.09, 4, skN), cm);
     if (r.patch) {
       const pm = { oil: lam({ map: TX.oil, transparent: true, opacity: 0.9 }), mud: lam({ map: TX.mud }) };
       for (const kind of ['oil', 'mud']) if (r.patch.includes(kind)) add(ribbon(r, i => -hw(i) + 0.4, i => hw(i) - 0.4, 0.11, 6, i => r.patch[i] !== kind || skip(i)), pm[kind]);
@@ -782,7 +811,7 @@ function g3() {
   return G3;
 }
 function spawnObj(m) {
-  const G = g3(), o = { id: m.id, kind: m.kind, x: m.x, z: m.z, x2: m.x2, z2: m.z2, t0: performance.now(), hitBy: new Set() };
+  const G = g3(), o = { id: m.id, kind: m.kind, by: m.by, x: m.x, z: m.z, x2: m.x2, z2: m.z2, t0: performance.now(), hitBy: new Set() };
   o.y = Number.isFinite(m.y) ? m.y : W.groundHeight(m.x, m.z);
   o.y2 = Number.isFinite(m.y2) ? m.y2 : W.groundHeight(m.x2, m.z2);
   if (m.kind === 'banana') {
@@ -1170,7 +1199,7 @@ function hitMe(kind) {
   if (car.angelT > 0) { X.sfx.pop(); X.toast('천사가 막아줬어요!'); return; }
   if (car.shieldT > 0) { car.shieldT = 0; X.sfx.pop(); X.toast('실드가 막아줬어요!'); return; }
   if (kind === 'zap') { car.zapT = 2.8; X.sfx.crash(6); return; }
-  if (kind === 'ink') { S.inkT = 3.5; X.sfx.splash(); return; }
+  if (kind === 'ink') { S.inkT = 5; X.sfx.splash(); return; }
   if (kind === 'devil') { car.devilT = 3.2; X.bigText('청개구리! 핸들이 반대로', 1400, true); X.sfx.warn(); return; }
   if (kind === 'ufo') { car.trapT = 2.2; car.vx *= 0.2; car.vz *= 0.2; X.sfx.warn(); return; }
   if (kind === 'ice') { car.trapT = 1.7; car.iceT = 1.7; car.vx *= 0.1; car.vz *= 0.1; X.sfx.pop(); X.bigText('꽁꽁!', 900, true); return; }
@@ -1292,7 +1321,7 @@ export function gpFrame(dt, now) {
       b.m.rotation.y = t * 1.5; b.m.rotation.x = t * 0.7;
       b.m.position.y = b.y + 1.6 + Math.sin(t * 3 + b.x) * 0.2;
       if (!GP.spectating() && Math.hypot(car.x - b.x, car.z - b.z) < 2.6 && Math.abs(car.y - b.y) < 4) {
-        b.back = now + 2500; b.m.visible = false;
+        b.back = now + 1200; b.m.visible = false;
         if (S.items.length < 2) { const it = rollItem(); S.items.push(it); X.sfx.item(); renderHud(); if (ITEM_DESC[it]) X.toast(ITEM_NAME[it] + ': ' + ITEM_DESC[it]); }
         for (let k = 0; k < 8; k++) X.spawnPart(b.x, b.y + 1.6, b.z, (Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6, 0x9a80ff, 0.5, 0.7);
       }
@@ -1316,7 +1345,7 @@ export function gpFrame(dt, now) {
         const s = 1 + Math.sin(t * 6) * 0.05;
         o.splash.scale.set(s, 1, s);
         if (Math.random() < 0.3) X.spawnPart(o.x2 + (Math.random() - 0.5) * 8, o.y2 + 0.5, o.z2 + (Math.random() - 0.5) * 8, 0, 2 + Math.random() * 2, 0, o.kind === 'ice' ? 0xffffff : 0x8ac8ff, 0.5, 0.6);
-        if (!GP.spectating() && !o.hitBy.has(me) && Math.hypot(car.x - o.x2, car.z - o.z2) < 5.2 && Math.abs(car.y - o.y2) < 4) { o.hitBy.add(me); hitMe(o.kind === 'ice' ? 'ice' : 'water'); }
+        if (!GP.spectating() && o.by !== me && !o.hitBy.has(me) && Math.hypot(car.x - o.x2, car.z - o.z2) < 5.2 && Math.abs(car.y - o.y2) < 4) { o.hitBy.add(me); hitMe(o.kind === 'ice' ? 'ice' : 'water'); }
         if (age > fly + (o.kind === 'ice' ? 5 : 3.5)) removeObj(o.id);
       }
     }

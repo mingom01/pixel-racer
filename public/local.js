@@ -122,7 +122,7 @@ export function makeLocalServer(onMsg) {
       case 'raceCancel': if (r && r.race) { r.race = null; me.send({ t: 'raceEnd', results: [], cancelled: true }); } break;
       case 'cp': onCheckpoint(m.i | 0, +m.x, +m.z); break;
       default:
-        if (r && r.kind === 'gp' && (m.t.startsWith('gp') || m.t === 'gi')) GP.handle(me, r, m);
+        if (r && r.kind === 'gp' && (m.t.startsWith('gp') || m.t === 'gi' || m.t === 'bump')) GP.handle(me, r, m);
     }
   }
 
